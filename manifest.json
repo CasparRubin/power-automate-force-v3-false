@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "_comment_manifest_version": "Manifest V3 is required for modern Chrome/Edge extensions.",
+  "name": "Power Automate Force v3=false",
+  "_comment_name": "Extension name shown in the browser extension UI.",
+  "version": "1.0.0",
+  "_comment_version": "SemVer-style extension version.",
+  "description": "Forces v3=false on Power Automate flow and run URLs.",
+  "_comment_description": "Short summary visible in extension details.",
+  "homepage_url": "https://helvety.com",
+  "_comment_homepage_url": "Shown in extension details as the extension homepage link (Chrome/Edge). Publisher name is set in the store dashboard, not here.",
+  "icons": {
+    "16": "assets/v3False_16.png",
+    "32": "assets/v3False_32.png",
+    "48": "assets/v3False_48.png",
+    "128": "assets/v3False_128.png"
+  },
+  "_comment_icons": "PNG raster icons per Chrome manifest; 128 used for install and Chrome Web Store.",
+  "content_scripts": [
+    {
+      "_comment_matches": "Inject only on Power Automate web app pages.",
+      "matches": [
+        "https://make.powerautomate.com/*"
+      ],
+      "_comment_js": "Single vanilla JS content script with URL enforcement logic.",
+      "js": [
+        "content.js"
+      ],
+      "_comment_run_at": "Run early so URL is corrected during initial app load.",
+      "run_at": "document_start"
+    }
+  ]
+}
