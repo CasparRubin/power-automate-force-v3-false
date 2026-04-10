@@ -16,46 +16,47 @@
 (function initV3FalseEnforcer() {
   "use strict";
 
-  // Paths that indicate a flow editor/view or a flow run page.
-  var TARGET_PATH_SEGMENTS = ["/flows/", "/runs/"];
-
   // Guard to avoid patching History API multiple times.
   var isHistoryPatched = false;
+  var fallbackTimerId = null;
+  var fallbackStopTimerId = null;
+  var fallbackObserver = null;
+  var lastEnforcedHref = "";
 
-  /**
-   * Returns true when the current path should be enforced.
-   */
-  function isTargetPath(pathname) {
-    for (var i = 0; i < TARGET_PATH_SEGMENTS.length; i += 1) {
-      if (pathname.indexOf(TARGET_PATH_SEGMENTS[i]) !== -1) {
-        return true;
-      }
-    }
-    return false;
+  function hasPolicy() {
+    return Boolean(
+      window.PowerAutomateUrlPolicy &&
+        typeof window.PowerAutomateUrlPolicy.isTargetUrl === "function" &&
+        typeof window.PowerAutomateUrlPolicy.canonicalizeToOldEditor === "function"
+    );
   }
 
   /**
-   * Ensures v3=false on the current URL when path matches /flows/ or /runs/.
+   * Ensures v3=false on the current URL when policy says target URL.
    * Returns true when a URL change is applied, false otherwise.
    */
   function enforceV3FalseOnCurrentUrl() {
-    var current = new URL(window.location.href);
-
-    if (!isTargetPath(current.pathname)) {
+    if (!hasPolicy()) {
       return false;
     }
 
-    var currentV3 = current.searchParams.get("v3");
-    if (currentV3 === "false") {
+    var currentHref = window.location.href;
+    if (currentHref === lastEnforcedHref) {
       return false;
     }
 
-    current.searchParams.set("v3", "false");
-    var nextUrl = current.toString();
-
-    if (nextUrl === window.location.href) {
+    if (!window.PowerAutomateUrlPolicy.isTargetUrl(currentHref)) {
+      lastEnforcedHref = currentHref;
       return false;
     }
+
+    var nextUrl = window.PowerAutomateUrlPolicy.canonicalizeToOldEditor(currentHref);
+    if (!nextUrl) {
+      lastEnforcedHref = currentHref;
+      return false;
+    }
+
+    lastEnforcedHref = nextUrl;
 
     // Use replaceState so we do not create extra history entries or reload.
     window.history.replaceState(window.history.state, "", nextUrl);
@@ -87,12 +88,50 @@
     };
   }
 
+  function stopShortLivedFallback() {
+    if (fallbackTimerId !== null) {
+      window.clearInterval(fallbackTimerId);
+      fallbackTimerId = null;
+    }
+    if (fallbackStopTimerId !== null) {
+      window.clearTimeout(fallbackStopTimerId);
+      fallbackStopTimerId = null;
+    }
+    if (fallbackObserver) {
+      fallbackObserver.disconnect();
+      fallbackObserver = null;
+    }
+  }
+
+  function startShortLivedFallback() {
+    stopShortLivedFallback();
+
+    fallbackTimerId = window.setInterval(function fallbackTick() {
+      enforceV3FalseOnCurrentUrl();
+    }, 400);
+
+    fallbackStopTimerId = window.setTimeout(function stopFallback() {
+      stopShortLivedFallback();
+    }, 6000);
+
+    fallbackObserver = new MutationObserver(function onMutation() {
+      enforceV3FalseOnCurrentUrl();
+    });
+
+    fallbackObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+
   // Initial pass for direct navigation and refresh.
   enforceV3FalseOnCurrentUrl();
+  startShortLivedFallback();
 
   // Back/forward navigation in SPA/browser history.
   window.addEventListener("popstate", function onPopState() {
     enforceV3FalseOnCurrentUrl();
+    startShortLivedFallback();
   });
 
   // Patch SPA navigation methods for in-app route changes.

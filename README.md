@@ -1,22 +1,30 @@
 # Power Automate Force `v3=false`
 
-Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and run URLs use `v3=false` when you edit or view a flow (or a run).
+Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and run URLs use `v3=false` when you edit or view a flow (or a run), even when the editor is opened through different navigation paths.
 
 **Developer:** [Helvety](https://helvety.com)
 
 ## What it does
 
-- Runs only on `https://make.powerautomate.com/*` (see `manifest.json` → `content_scripts`).
+- Runs on Microsoft Power Automate hosts:
+  - `https://*.powerautomate.com/*`
+  - `https://flow.microsoft.com/*`
 - Only changes URLs whose path contains `/flows/` or `/runs/`.
-- Adds `v3=false` if missing, or sets it when the value is not already `false` (e.g. `v3=true`).
-- Uses `history.replaceState` plus History API hooks so it works on first load, refresh, back/forward, and typical SPA navigation.
+- Adds `v3=false` if missing, or replaces it when the value is not already `false` (e.g. `v3=true`).
+- Uses a layered architecture for reliability:
+  - **Layer 1:** `declarativeNetRequest` redirect rule with query transform (`v3=false`) on matching editor URLs.
+  - **Layer 2:** background `webNavigation` fallback that rewrites rare missed navigations.
+  - **Layer 3:** content-script fallback for SPA/internal route transitions using History API hooks, `popstate`, and a short-lived observer/polling window.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `manifest.json` | MV3 metadata, `icons`, and content script registration. |
-| `content.js` | URL detection and rewriting logic (vanilla JS, commented). |
+| `rules.json` | Declarative Net Request rules that normalize editor URLs to `v3=false` before load when possible. |
+| `background.js` | Imperative fallback for main-frame navigation/history updates missed by declarative rules. |
+| `url-policy.js` | Shared URL targeting/canonicalization policy used by both background and content layers. |
+| `content.js` | In-page fallback URL enforcement logic for SPA/internal transitions (bounded, loop-safe). |
 | `assets/v3False_*.png` | Extension icons (16, 32, 48, 128 px) referenced by `manifest.json` → `icons`. |
 
 ## Load unpacked (development)
@@ -47,4 +55,18 @@ The `_comment_*` keys in `manifest.json` are optional human-readable notes; Chro
 
 ## Implementation notes
 
-Comments in `content.js` match the current behavior. JSON does not allow `//` comments in `manifest.json`, so explanations use `_comment_*` strings or this README.
+Comments in JS files match the current behavior. JSON does not allow `//` comments in `manifest.json`, so explanations use `_comment_*` strings or this README.
+
+## Validation checklist
+
+Run these checks after loading unpacked:
+
+- Direct URL open to editor page with `v3=true` -> URL becomes `v3=false`.
+- Direct URL open to editor page without `v3` -> URL gains `v3=false`.
+- Open flow from list/dashboard -> final URL contains `v3=false`.
+- Open run detail into editor -> final URL contains `v3=false`.
+- Browser back/forward into editor route -> final URL contains `v3=false`.
+- Open in new tab/window (`Ctrl/Cmd+Click`, context menu) -> final URL contains `v3=false`.
+- Deep link from notification/history -> final URL contains `v3=false`.
+- URL variants (extra params, repeated params) -> keep other params, normalize `v3=false`.
+- Non-target pages (no `/flows/` and no `/runs/`) -> unchanged.
