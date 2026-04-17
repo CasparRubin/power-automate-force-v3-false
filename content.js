@@ -1,8 +1,8 @@
 /**
- * Power Automate v3=false enforcer
+ * Power Automate URL canonicalizer.
  *
- * This content script runs on make.powerautomate.com and ensures that URLs
- * related to flow editing/viewing include v3=false.
+ * This content script runs on supported Power Automate hosts and ensures flow/run
+ * URLs are normalized to v3=false and v3survey=false (when v3survey exists).
  *
  * Scope:
  * - Only URLs whose path contains /flows/ or /runs/
@@ -13,7 +13,7 @@
  * - Browser back/forward (popstate)
  * - SPA navigation via history.pushState / history.replaceState
  */
-(function initV3FalseEnforcer() {
+(function initUrlCanonicalizer() {
   "use strict";
 
   // Guard to avoid patching History API multiple times.
@@ -32,10 +32,10 @@
   }
 
   /**
-   * Ensures v3=false on the current URL when policy says target URL.
+   * Applies shared URL policy to the current URL when in scope.
    * Returns true when a URL change is applied, false otherwise.
    */
-  function enforceV3FalseOnCurrentUrl() {
+  function enforceCanonicalUrlOnCurrentPage() {
     if (!hasPolicy()) {
       return false;
     }
@@ -77,13 +77,13 @@
 
     window.history.pushState = function pushStateWrapper() {
       var result = originalPushState.apply(window.history, arguments);
-      enforceV3FalseOnCurrentUrl();
+      enforceCanonicalUrlOnCurrentPage();
       return result;
     };
 
     window.history.replaceState = function replaceStateWrapper() {
       var result = originalReplaceState.apply(window.history, arguments);
-      enforceV3FalseOnCurrentUrl();
+      enforceCanonicalUrlOnCurrentPage();
       return result;
     };
   }
@@ -107,7 +107,7 @@
     stopShortLivedFallback();
 
     fallbackTimerId = window.setInterval(function fallbackTick() {
-      enforceV3FalseOnCurrentUrl();
+      enforceCanonicalUrlOnCurrentPage();
     }, 400);
 
     fallbackStopTimerId = window.setTimeout(function stopFallback() {
@@ -115,7 +115,7 @@
     }, 6000);
 
     fallbackObserver = new MutationObserver(function onMutation() {
-      enforceV3FalseOnCurrentUrl();
+      enforceCanonicalUrlOnCurrentPage();
     });
 
     fallbackObserver.observe(document.documentElement, {
@@ -125,12 +125,12 @@
   }
 
   // Initial pass for direct navigation and refresh.
-  enforceV3FalseOnCurrentUrl();
+  enforceCanonicalUrlOnCurrentPage();
   startShortLivedFallback();
 
   // Back/forward navigation in SPA/browser history.
   window.addEventListener("popstate", function onPopState() {
-    enforceV3FalseOnCurrentUrl();
+    enforceCanonicalUrlOnCurrentPage();
     startShortLivedFallback();
   });
 

@@ -1,6 +1,6 @@
-# Power Automate Force `v3=false`
+# Power Automate Force `v3=false` and `v3survey=false`
 
-Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and run URLs use `v3=false` when you edit or view a flow (or a run), even when the editor is opened through different navigation paths.
+Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and run URLs use `v3=false` and normalize `v3survey=false` (when present), even when the editor is opened through different navigation paths.
 
 **Developer:** [Helvety](https://helvety.com)
 
@@ -11,10 +11,11 @@ Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and
   - `https://flow.microsoft.com/*`
 - Only changes URLs whose path contains `/flows/` or `/runs/`.
 - Adds `v3=false` if missing, or replaces it when the value is not already `false` (e.g. `v3=true`).
+- If a target URL includes `v3survey`, its value is normalized to `false`.
 - Uses a layered architecture for reliability:
   - **Layer 1:** `declarativeNetRequest` redirect rule with query transform (`v3=false`) on matching editor URLs.
-  - **Layer 2:** background `webNavigation` fallback that rewrites rare missed navigations.
-  - **Layer 3:** content-script fallback for SPA/internal route transitions using History API hooks, `popstate`, and a short-lived observer/polling window.
+  - **Layer 2:** background `webNavigation` fallback that applies shared URL canonicalization (`v3=false`, plus `v3survey=false` when present).
+  - **Layer 3:** content-script fallback for SPA/internal route transitions using History API hooks, `popstate`, and a short-lived observer/polling window; also applies shared URL canonicalization.
 
 ## Files
 
@@ -51,11 +52,9 @@ What **does not** live in the manifest (you set these in each store’s develope
 - **Screenshots, promotional images, detailed description** — uploaded in the store.
 - **Promo tiles** — e.g. 440×280 small promo; not in the manifest (see [Chrome Web Store images](https://developer.chrome.com/docs/webstore/images)). Package icons (`assets/v3False_*.png` + `icons` in the manifest) cover the extension icon requirement.
 
-The `_comment_*` keys in `manifest.json` are optional human-readable notes; Chromium ignores unknown keys. If a validator ever complains, you can remove those keys before submission.
-
 ## Implementation notes
 
-Comments in JS files match the current behavior. JSON does not allow `//` comments in `manifest.json`, so explanations use `_comment_*` strings or this README.
+Comments in JS files match the current behavior. JSON does not allow `//` comments in `manifest.json`, so implementation details are documented in this README.
 
 ## Validation checklist
 
@@ -69,4 +68,6 @@ Run these checks after loading unpacked:
 - Open in new tab/window (`Ctrl/Cmd+Click`, context menu) -> final URL contains `v3=false`.
 - Deep link from notification/history -> final URL contains `v3=false`.
 - URL variants (extra params, repeated params) -> keep other params, normalize `v3=false`.
+- URL includes `v3survey=true` -> normalize to `v3survey=false`.
+- URL does not include `v3survey` -> do not add `v3survey`.
 - Non-target pages (no `/flows/` and no `/runs/`) -> unchanged.

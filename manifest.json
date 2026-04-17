@@ -1,29 +1,14 @@
 {
   "manifest_version": 3,
-  "_comment_manifest_version": "Manifest V3 is required for modern Chrome/Edge extensions.",
-  "name": "Power Automate Force v3=false",
-  "_comment_name": "Extension name shown in the browser extension UI.",
-  "version": "1.0.0",
-  "_comment_version": "SemVer-style extension version.",
-  "description": "Forces v3=false on Power Automate flow and run URLs.",
-  "_comment_description": "Short summary visible in extension details.",
+  "name": "Power Automate Force v3=false & v3survey=false",
+  "version": "1.1.0",
+  "description": "Forces v3=false and v3survey=false on Power Automate flow and run URLs.",
   "homepage_url": "https://helvety.com",
-  "_comment_homepage_url": "Shown in extension details as the extension homepage link (Chrome/Edge). Publisher name is set in the store dashboard, not here.",
-  "permissions": [
-    "declarativeNetRequest",
-    "webNavigation",
-    "tabs"
-  ],
-  "_comment_permissions": "Use declarative redirects first, with minimal imperative navigation fallback.",
-  "host_permissions": [
-    "https://*.powerautomate.com/*",
-    "https://flow.microsoft.com/*"
-  ],
-  "_comment_host_permissions": "Explicit Microsoft Power Automate host allowlist.",
+  "permissions": ["declarativeNetRequest", "webNavigation", "tabs"],
+  "host_permissions": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
   "background": {
     "service_worker": "background.js"
   },
-  "_comment_background": "Service worker handles imperative fallback for edge navigation cases.",
   "declarative_net_request": {
     "rule_resources": [
       {
@@ -33,27 +18,16 @@
       }
     ]
   },
-  "_comment_declarative_net_request": "Pre-navigation rewrite to enforce v3=false where possible.",
   "icons": {
     "16": "assets/v3False_16.png",
     "32": "assets/v3False_32.png",
     "48": "assets/v3False_48.png",
     "128": "assets/v3False_128.png"
   },
-  "_comment_icons": "PNG raster icons per Chrome manifest; 128 used for install and Chrome Web Store.",
   "content_scripts": [
     {
-      "_comment_matches": "Inject only on Power Automate web app pages.",
-      "matches": [
-        "https://*.powerautomate.com/*",
-        "https://flow.microsoft.com/*"
-      ],
-      "_comment_js": "Shared URL policy + content-script fallback logic.",
-      "js": [
-        "url-policy.js",
-        "content.js"
-      ],
-      "_comment_run_at": "Run early so URL is corrected during initial app load.",
+      "matches": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
+      "js": ["url-policy.js", "content.js"],
       "run_at": "document_start"
     }
   ]

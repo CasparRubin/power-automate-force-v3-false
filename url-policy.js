@@ -10,6 +10,9 @@
   ];
 
   var TARGET_PATH_SEGMENTS = ["/flows/", "/runs/"];
+  var V3_PARAM_KEY = "v3";
+  var V3_SURVEY_PARAM_KEY = "v3survey";
+  var FALSE_VALUE = "false";
 
   function isSupportedHost(hostname) {
     for (var i = 0; i < HOST_PATTERNS.length; i += 1) {
@@ -40,13 +43,36 @@
     return isSupportedHost(parsed.hostname) && isTargetPath(parsed.pathname);
   }
 
+  function normalizeV3SurveyIfPresent(searchParams) {
+    searchParams.forEach(function enforceV3Survey(_value, key) {
+      if (key.toLowerCase() === V3_SURVEY_PARAM_KEY) {
+        searchParams.set(key, FALSE_VALUE);
+      }
+    });
+  }
+
+  function normalizeV3Param(searchParams) {
+    var hasV3Param = false;
+    searchParams.forEach(function enforceV3(_value, key) {
+      if (key.toLowerCase() === V3_PARAM_KEY) {
+        hasV3Param = true;
+        searchParams.set(key, FALSE_VALUE);
+      }
+    });
+
+    if (!hasV3Param) {
+      searchParams.set(V3_PARAM_KEY, FALSE_VALUE);
+    }
+  }
+
   function canonicalizeToOldEditor(urlValue) {
     var parsed = new URL(urlValue);
     if (!isSupportedHost(parsed.hostname) || !isTargetPath(parsed.pathname)) {
       return null;
     }
 
-    parsed.searchParams.set("v3", "false");
+    normalizeV3Param(parsed.searchParams);
+    normalizeV3SurveyIfPresent(parsed.searchParams);
     var nextUrl = parsed.toString();
     if (nextUrl === urlValue) {
       return null;

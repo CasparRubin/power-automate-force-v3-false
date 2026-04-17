@@ -15,7 +15,12 @@ function enforceOldEditorOnTab(tabId, urlValue) {
     return;
   }
 
-  chrome.tabs.update(tabId, { url: nextUrl });
+  chrome.tabs.update(tabId, { url: nextUrl }, function ignoreClosedTabError() {
+    // Tab may have closed or navigated away before update applies.
+    if (chrome.runtime.lastError) {
+      return;
+    }
+  });
 }
 
 function isMainFrameNavigation(details) {
