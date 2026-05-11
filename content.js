@@ -125,14 +125,32 @@
       stopShortLivedFallback();
     }, 6000);
 
-    fallbackObserver = new MutationObserver(function onMutation() {
-      enforceCanonicalUrlOnCurrentPage();
-    });
+    try {
+      fallbackObserver = new MutationObserver(function onMutation() {
+        enforceCanonicalUrlOnCurrentPage();
+      });
 
-    fallbackObserver.observe(document.documentElement, {
-      childList: true,
-      subtree: true
-    });
+      if (document.documentElement) {
+        fallbackObserver.observe(document.documentElement, {
+          childList: true,
+          subtree: true
+        });
+      } else {
+        // Rare early-document timing: start observer once root element exists.
+        window.addEventListener("DOMContentLoaded", function onDomContentLoaded() {
+          window.removeEventListener("DOMContentLoaded", onDomContentLoaded);
+          if (fallbackObserver && document.documentElement) {
+            fallbackObserver.observe(document.documentElement, {
+              childList: true,
+              subtree: true
+            });
+          }
+        });
+      }
+    } catch (_error) {
+      // Keep timer-based fallback active even if observer setup fails.
+      fallbackObserver = null;
+    }
   }
 
   // Initial pass for direct navigation and refresh.

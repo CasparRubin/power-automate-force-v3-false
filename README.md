@@ -4,6 +4,16 @@ Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and
 
 **Developer:** [Helvety](https://helvety.com)
 
+## License and legal links
+
+- This repository is licensed under the [MIT License](./LICENSE).
+- Warranty and liability disclaimer: this software is provided "AS IS", without warranties or guarantees, and without liability to the maximum extent permitted by law (see `LICENSE`).
+- Official legal pages:
+  - Privacy Policy: [https://helvety.com/privacy](https://helvety.com/privacy)
+  - Terms of Service: [https://helvety.com/terms](https://helvety.com/terms)
+  - Impressum / Legal Notice: [https://helvety.com/impressum](https://helvety.com/impressum)
+- Chrome Web Store / Edge Add-ons note: set the privacy policy URL in the store listing to `https://helvety.com/privacy`.
+
 ## What it does
 
 - Runs on Microsoft Power Automate hosts:
@@ -35,6 +45,16 @@ Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select this folder.
 
+## Browser compatibility
+
+- Manifest V3 extension intended for:
+  - Chrome (Stable)
+  - Microsoft Edge (Stable)
+- Implementation assumes support for:
+  - `declarativeNetRequest` query transforms
+  - `webNavigation` main-frame events
+  - History API and `MutationObserver` in content scripts
+
 ## Store listing vs `manifest.json`
 
 What **comes from the manifest** (Chrome/Edge extension details):
@@ -51,11 +71,24 @@ What **does not** live in the manifest (you set these in each store’s develope
 
 - **Publisher / developer display name** (e.g. “Helvety”) — tied to your **Chrome Web Store** or **Microsoft Partner Center** account, not a manifest field.
 - **Screenshots, promotional images, detailed description** — uploaded in the store.
+- **Privacy policy URL** — set in the store listing/dashboard (recommended: `https://helvety.com/privacy`).
 - **Promo tiles** — e.g. 440×280 small promo; not in the manifest (see [Chrome Web Store images](https://developer.chrome.com/docs/webstore/images)). Package icons (`assets/v3False_*.png` + `icons` in the manifest) cover the extension icon requirement.
 
 ## Implementation notes
 
 Comments in JS files match the current behavior. JSON does not allow `//` comments in `manifest.json`, so implementation details are documented in this README.
+
+## Known limitations
+
+- URL enforcement applies only when pathname contains `/flows/` or `/runs/`.
+- `v3survey=false` is normalized only when `v3survey` already exists in the URL.
+- If Power Automate changes hostnames or route structures, matching rules may need updates.
+
+## Lightweight regression checks
+
+- Run URL policy tests:
+  - `node tests/url-policy.test.js`
+- These tests cover mixed-case query keys, repeated params, encoded query variants, non-target pages, and invalid URLs.
 
 ## Validation checklist
 

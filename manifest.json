@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Power Automate Force v3=false & v3survey=false",
-  "version": "1.2.0",
-  "description": "Forces v3=false and v3survey=false on Power Automate flow and run URLs.",
+  "name": "Power Automate Force v3=false (& v3survey=false when present)",
+  "version": "1.3.0",
+  "description": "Forces v3=false on Power Automate flow/run URLs and normalizes v3survey=false when present.",
   "homepage_url": "https://helvety.com",
-  "permissions": ["declarativeNetRequest", "webNavigation", "tabs"],
+  "permissions": ["declarativeNetRequest", "webNavigation"],
   "host_permissions": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
   "background": {
     "service_worker": "background.js"
