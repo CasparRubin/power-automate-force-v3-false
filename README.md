@@ -12,6 +12,7 @@ Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and
 - Only changes URLs whose path contains `/flows/` or `/runs/`.
 - Adds `v3=false` if missing, or replaces it when the value is not already `false` (e.g. `v3=true`).
 - If a target URL includes `v3survey`, its value is normalized to `false`.
+- Uses semantic URL dedupe to avoid rewrite loops on equivalent `/flows/new` URLs (for example `%20` vs `+` encoding differences).
 - Uses a layered architecture for reliability:
   - **Layer 1:** `declarativeNetRequest` redirect rule with query transform (`v3=false`) on matching editor URLs.
   - **Layer 2:** background `webNavigation` fallback that applies shared URL canonicalization (`v3=false`, plus `v3survey=false` when present).
@@ -70,4 +71,5 @@ Run these checks after loading unpacked:
 - URL variants (extra params, repeated params) -> keep other params, normalize `v3=false`.
 - URL includes `v3survey=true` -> normalize to `v3survey=false`.
 - URL does not include `v3survey` -> do not add `v3survey`.
+- `/flows/new` URL variants that differ only in encoding (e.g. `%20` vs `+`) -> no repeated rewrite loop.
 - Non-target pages (no `/flows/` and no `/runs/`) -> unchanged.

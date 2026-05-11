@@ -22,12 +22,14 @@
   var fallbackStopTimerId = null;
   var fallbackObserver = null;
   var lastEnforcedHref = "";
+  var lastEnforcedCanonicalKey = "";
 
   function hasPolicy() {
     return Boolean(
       window.PowerAutomateUrlPolicy &&
         typeof window.PowerAutomateUrlPolicy.isTargetUrl === "function" &&
-        typeof window.PowerAutomateUrlPolicy.canonicalizeToOldEditor === "function"
+        typeof window.PowerAutomateUrlPolicy.canonicalizeToOldEditor === "function" &&
+        typeof window.PowerAutomateUrlPolicy.getCanonicalKey === "function"
     );
   }
 
@@ -47,16 +49,25 @@
 
     if (!window.PowerAutomateUrlPolicy.isTargetUrl(currentHref)) {
       lastEnforcedHref = currentHref;
+      lastEnforcedCanonicalKey = "";
+      return false;
+    }
+
+    var currentCanonicalKey = window.PowerAutomateUrlPolicy.getCanonicalKey(currentHref);
+    if (currentCanonicalKey && currentCanonicalKey === lastEnforcedCanonicalKey) {
+      lastEnforcedHref = currentHref;
       return false;
     }
 
     var nextUrl = window.PowerAutomateUrlPolicy.canonicalizeToOldEditor(currentHref);
     if (!nextUrl) {
       lastEnforcedHref = currentHref;
+      lastEnforcedCanonicalKey = currentCanonicalKey || "";
       return false;
     }
 
     lastEnforcedHref = nextUrl;
+    lastEnforcedCanonicalKey = window.PowerAutomateUrlPolicy.getCanonicalKey(nextUrl) || "";
 
     // Use replaceState so we do not create extra history entries or reload.
     window.history.replaceState(window.history.state, "", nextUrl);
