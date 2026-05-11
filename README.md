@@ -1,4 +1,4 @@
-# Power Automate Force `v3=false` and `v3survey=false`
+# Power Automate Force v3=false
 
 Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and run URLs use `v3=false` and normalize `v3survey=false` (when present), even when the editor is opened through different navigation paths.
 
