@@ -66,7 +66,7 @@ Source lives under `src/`. The loadable extension is produced in **`dist/`** aft
 
 ## Unit tests
 
-Tests run **locally** with [Vitest](https://vitest.dev/) (already a devDependency). They use the **Node** environment (no browser, no Playwright). Suites cover **pure helpers**, **`PowerAutomateUrlPolicy`** (module-level state; tests call `configure({ preference, v3surveyEnabled })` in `beforeEach`), **popup helpers** (theme preference, tab reload with a **stubbed `chrome.tabs`**), and small **manifest drift** checks.
+Tests run **locally** with [Vitest](https://vitest.dev/) **4.x** (see `package.json` `devDependencies`). They use the **Node** environment (no browser, no Playwright). Suites cover **pure helpers**, **`PowerAutomateUrlPolicy`** (module-level state; tests call `configure({ preference, v3surveyEnabled })` in `beforeEach`), **popup helpers** (theme preference, tab reload with a **stubbed `chrome.tabs`**), and small **manifest drift** checks.
 
 | Suite                                                                                  | What it covers                                                                                                                                                                                                                                                                                                     |
 | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -151,6 +151,19 @@ npm run build
 ```
 
 For a release-style gate (naming scan + the above), use **`npm run predeploy`**.
+
+## GitHub Releases
+
+1. Bump **`public/manifest.json`** `version` (semver) and commit to `main`.
+2. Tag from the repo root (annotated tag matches the manifest line, with a `v` prefix):
+
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"   # e.g. manifest "2.3.0" → tag v2.3.0
+   git push origin main
+   git push origin vX.Y.Z
+   ```
+
+3. The [**Release** workflow](.github/workflows/release.yml) runs on every pushed tag `v*.*.*`: it installs dependencies, runs **`npm run build`**, zips the **`dist/`** folder, and attaches the zip to a [GitHub Release](https://github.com/CasparRubin/power-automate-editor-version-enforcer/releases) for that tag (Chrome Web Store / Edge uploads are still manual).
 
 ## Validation checklist
 
