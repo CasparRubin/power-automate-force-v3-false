@@ -116,6 +116,18 @@ describe("PowerAutomateUrlPolicy (v3survey enabled, v3=false)", () => {
     PowerAutomateUrlPolicy.configure({ preference: "false", v3surveyEnabled: true });
   });
 
+  it("getCanonicalKey distinguishes v3survey when survey mode is on", () => {
+    const compliant = PowerAutomateUrlPolicy.getCanonicalKey(
+      "https://flow.microsoft.com/en-us/flows/id?v3=false&v3survey=true",
+    );
+    const nonCompliant = PowerAutomateUrlPolicy.getCanonicalKey(
+      "https://flow.microsoft.com/en-us/flows/id?v3=false&v3survey=false",
+    );
+    expect(compliant).not.toBe(nonCompliant);
+    expect(compliant).toContain("|v3survey=true");
+    expect(nonCompliant).toContain("|v3survey=other");
+  });
+
   it("adds v3survey=true when missing", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://emea.powerautomate.com/environments/foo/flows/bar/details?x=1&v3=false",

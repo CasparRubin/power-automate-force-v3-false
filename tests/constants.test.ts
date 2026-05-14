@@ -12,6 +12,7 @@ import {
   parseEnforcementPreference,
   parseV3SurveyEnabled,
   STORAGE_KEY_ENFORCED_V3,
+  STORAGE_KEY_POPUP_THEME,
   STORAGE_KEY_V3SURVEY_ENABLED,
   SYNC_POLICY_KEYS,
 } from "../src/constants";
@@ -82,6 +83,7 @@ describe("needsDefaultV3SurveyEnabledSeed", () => {
 
   it("is true for missing or invalid values", () => {
     expect(needsDefaultV3SurveyEnabledSeed(undefined)).toBe(true);
+    expect(needsDefaultV3SurveyEnabledSeed(null)).toBe(true);
     expect(needsDefaultV3SurveyEnabledSeed("TRUE")).toBe(true);
   });
 });
@@ -101,6 +103,7 @@ describe("storage and default mode constants", () => {
   it("uses stable storage key and default enforced mode", () => {
     expect(STORAGE_KEY_ENFORCED_V3).toBe("enforcedV3");
     expect(STORAGE_KEY_V3SURVEY_ENABLED).toBe("v3surveyEnabled");
+    expect(STORAGE_KEY_POPUP_THEME).toBe("popupThemePreference");
     expect(DEFAULT_ENFORCED_V3).toBe("false");
     expect(DEFAULT_ENFORCEMENT_PREFERENCE).toBe("false");
   });

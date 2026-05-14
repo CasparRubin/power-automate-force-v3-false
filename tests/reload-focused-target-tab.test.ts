@@ -27,17 +27,36 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     expect(chromeMock.tabs.query).not.toHaveBeenCalled();
   });
 
-  it("queries last-focused window and reloads when preference is classic or new designer", async () => {
-    const reload = vi.fn().mockResolvedValue(undefined);
-    const chromeMock = chromeTabsStub([{ id: 7, url: FLOW_TAB_URL }], reload);
+  it.each(["true", "false"] as const)(
+    "queries last-focused window and reloads when preference is %s (enforcement on)",
+    async (preference) => {
+      const reload = vi.fn().mockResolvedValue(undefined);
+      const chromeMock = chromeTabsStub([{ id: 7, url: FLOW_TAB_URL }], reload);
+      vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
+      await reloadFocusedTargetTabIfApplicable(preference);
+      expect(chromeMock.tabs.query).toHaveBeenCalledTimes(1);
+      expect(chromeMock.tabs.query).toHaveBeenCalledWith({
+        active: true,
+        lastFocusedWindow: true,
+      });
+      expect(reload).toHaveBeenCalledWith(7);
+    },
+  );
+
+  it("does not reload when query returns no tabs", async () => {
+    const reload = vi.fn();
+    const chromeMock = chromeTabsStub([], reload);
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await reloadFocusedTargetTabIfApplicable("true");
-    expect(chromeMock.tabs.query).toHaveBeenCalledTimes(1);
-    expect(chromeMock.tabs.query).toHaveBeenCalledWith({
-      active: true,
-      lastFocusedWindow: true,
-    });
-    expect(reload).toHaveBeenCalledWith(7);
+    await reloadFocusedTargetTabIfApplicable("false");
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("does not reload when active tab has no id", async () => {
+    const reload = vi.fn();
+    const chromeMock = chromeTabsStub([{ url: FLOW_TAB_URL }], reload);
+    vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
+    await reloadFocusedTargetTabIfApplicable("false");
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it("does not reload when the active tab has no url", async () => {

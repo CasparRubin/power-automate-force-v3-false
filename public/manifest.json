@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Power Automate: editor preference",
-  "version": "2.0.0",
-  "description": "Flow and run links open in the editor you choose—classic or new. Optional survey flags. Pause without uninstalling.",
+  "version": "2.1.0",
+  "description": "Classic or new designer for flow and run links. Optional survey flags. Pause without uninstalling.",
   "homepage_url": "https://helvety.com",
   "permissions": ["declarativeNetRequest", "webNavigation", "storage"],
   "host_permissions": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
@@ -12,7 +12,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Power Automate — editor settings"
+    "default_title": "Power Automate editor settings"
   },
   "declarative_net_request": {
     "rule_resources": [

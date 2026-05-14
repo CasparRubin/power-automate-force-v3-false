@@ -4,3 +4,6 @@ _metadata/
 AGENT_RELEASE_NOTES.local.md
 node_modules/
 dist/
+.vite/
+coverage/
+*.tsbuildinfo

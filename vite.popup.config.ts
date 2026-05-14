@@ -10,6 +10,18 @@ const popupRoot = resolve(repoRoot, "src", "popup");
 export default defineConfig({
   root: popupRoot,
   base: "./",
+  resolve: {
+    alias: {
+      "@": resolve(repoRoot, "src"),
+    },
+  },
+  define: {
+    __BUILD_ID__: JSON.stringify(
+      process.env.GITHUB_SHA?.slice(0, 7) ??
+        process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
+        "local",
+    ),
+  },
   plugins: [
     react(),
     {

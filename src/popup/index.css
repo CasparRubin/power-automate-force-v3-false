@@ -2,6 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply m-0 bg-white text-slate-900;
+/**
+ * Popup theme aligned with Helvety monorepo `packages/ui/globals.css`:
+ * sharp corners (--radius: 0), brand red primary (~oklch 0.55 0.258 25 as HSL),
+ * minimal chrome. Surfaces use strict #fff / #000; muted tokens add subtle depth only.
+ */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 352 78% 49%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 352 78% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --ring: 352 78% 49%;
+    --radius: 0;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 352 74% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 68%;
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 352 70% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 0%;
+    --input: 0 0% 0%;
+    --ring: 352 74% 58%;
+    --radius: 0;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply m-0 bg-background text-foreground antialiased;
+  }
+}
+
+/**
+ * Themed scrollbars for native `overflow-y-auto` (OS defaults ignore `.dark`).
+ * Chromium: ::-webkit-scrollbar; Firefox: scrollbar-color / scrollbar-width.
+ */
+@layer utilities {
+  .popup-tab-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--foreground) / 0.35) hsl(var(--muted));
+  }
+
+  .popup-tab-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .popup-tab-scroll::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+
+  .popup-tab-scroll::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--foreground) / 0.28);
+  }
+
+  .popup-tab-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--foreground) / 0.45);
+  }
 }

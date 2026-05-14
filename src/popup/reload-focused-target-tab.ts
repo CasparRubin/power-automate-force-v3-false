@@ -4,6 +4,8 @@ import { PowerAutomateUrlPolicy } from "../url-policy";
 /**
  * Reloads the active tab in the last-focused browser window after a successful popup save when
  * editor enforcement is on (`"true"` or `"false"`, not `"off"`) and that tab is a flow/run URL.
+ * Uses {@link PowerAutomateUrlPolicy.isTargetUrl} only (host/path); the popup does not call
+ * `PowerAutomateUrlPolicy.configure`, so this does not depend on in-popup policy state.
  * Used after both **editor mode** and **survey flag** sync writes (survey saves pass the current
  * editor preference so reload is skipped while Paused).
  *

@@ -13,6 +13,9 @@ export const STORAGE_KEY_V3SURVEY_ENABLED = "v3surveyEnabled" as const;
 /** Keys loaded together by the service worker, content script, and popup. */
 export const SYNC_POLICY_KEYS = [STORAGE_KEY_ENFORCED_V3, STORAGE_KEY_V3SURVEY_ENABLED] as const;
 
+/** Local storage key for popup UI theme (`"system"` | `"light"` | `"dark"`). */
+export const STORAGE_KEY_POPUP_THEME = "popupThemePreference" as const;
+
 export const DNR_RULESET_CLASSIC_EDITOR_ID = "dnr-classic-editor" as const;
 export const DNR_RULESET_NEW_DESIGNER_ID = "dnr-new-designer" as const;
 
