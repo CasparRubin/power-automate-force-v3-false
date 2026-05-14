@@ -17,22 +17,22 @@
   "declarative_net_request": {
     "rule_resources": [
       {
-        "id": "editor-v3-false-rules",
+        "id": "dnr-classic-editor",
         "enabled": true,
-        "path": "rules-v3-false.json"
+        "path": "dnr-classic-editor.json"
       },
       {
-        "id": "editor-v3-true-rules",
+        "id": "dnr-new-designer",
         "enabled": false,
-        "path": "rules-v3-true.json"
+        "path": "dnr-new-designer.json"
       }
     ]
   },
   "icons": {
-    "16": "icons/v3False_16.png",
-    "32": "icons/v3False_32.png",
-    "48": "icons/v3False_48.png",
-    "128": "icons/v3False_128.png"
+    "16": "icons/icon_16.png",
+    "32": "icons/icon_32.png",
+    "48": "icons/icon_48.png",
+    "128": "icons/icon_128.png"
   },
   "content_scripts": [
     {

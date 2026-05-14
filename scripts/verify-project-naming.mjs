@@ -1,6 +1,7 @@
 /**
- * Fail the build if legacy project / package / display names appear anywhere
- * under the repo (excluding node_modules, dist, .git).
+ * Fail the build if superseded project strings appear anywhere under the repo
+ * (excluding node_modules, dist, .git). Patterns cover old repo slugs, a former
+ * npm package name, and a former store display title — see the `forbidden` list.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -12,6 +13,8 @@ const skipDirNames = new Set(["node_modules", "dist", ".git"]);
 /** @type {{ label: string; re: RegExp }[]} */
 const forbidden = [
   { label: "legacy repo slug power-automate-force-v3-false", re: /power-automate-force-v3-false/i },
+  { label: "legacy repo slug power-automate-v3-false", re: /power-automate-v3-false/i },
+  { label: "legacy repo slug power_automate_v3_false", re: /power_automate_v3_false/i },
   { label: "legacy package name power-automate-v3-enforcer", re: /power-automate-v3-enforcer/i },
   { label: 'legacy display title "Power Automate v3 enforcer"', re: /Power Automate v3 enforcer/i },
 ];
@@ -77,8 +80,8 @@ const hits = [];
 walk(root, hits);
 if (hits.length > 0) {
   console.error(
-    "verify-project-naming: forbidden legacy project strings found:\n" + hits.join("\n"),
+    "verify-project-naming: forbidden superseded name strings found:\n" + hits.join("\n"),
   );
   process.exit(1);
 }
-console.log("verify-project-naming: ok (no legacy project strings).");
+console.log("verify-project-naming: ok (no forbidden superseded name strings).");

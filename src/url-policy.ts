@@ -3,7 +3,7 @@ import type { EnforcedV3 } from "./constants";
 /**
  * Shared Power Automate URL policy for background and content scripts.
  * Call `PowerAutomateUrlPolicy.configure({ enforcedV3 })` before relying on canonicalization;
- * the service worker and popup keep this in sync with `chrome.storage.sync`.
+ * the service worker, popup, and content script each load the preference from `chrome.storage.sync` and call `configure()`.
  */
 const HOST_PATTERNS = [/(^|\.)powerautomate\.com$/i, /^flow\.microsoft\.com$/i];
 const TARGET_PATH_SEGMENTS = ["/flows/", "/runs/"];

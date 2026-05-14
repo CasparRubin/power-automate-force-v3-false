@@ -3,8 +3,8 @@ export type EnforcedV3 = "true" | "false";
 
 export const STORAGE_KEY_ENFORCED_V3 = "enforcedV3" as const;
 
-export const RULESET_V3_FALSE_ID = "editor-v3-false-rules" as const;
-export const RULESET_V3_TRUE_ID = "editor-v3-true-rules" as const;
+export const DNR_RULESET_CLASSIC_EDITOR_ID = "dnr-classic-editor" as const;
+export const DNR_RULESET_NEW_DESIGNER_ID = "dnr-new-designer" as const;
 
 export const DEFAULT_ENFORCED_V3: EnforcedV3 = "false";
 
@@ -15,7 +15,7 @@ export function parseEnforcedV3(value: unknown): EnforcedV3 {
   return "false";
 }
 
-/** True when install-time storage has no valid persisted mode yet. */
+/** True when the stored value is not the literal `"true"` or `"false"` (missing, wrong type, or other string). Used on first install to seed {@link DEFAULT_ENFORCED_V3}. */
 export function needsDefaultEnforcedV3Seed(raw: unknown): boolean {
   return raw !== "true" && raw !== "false";
 }

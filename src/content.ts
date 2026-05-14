@@ -1,7 +1,8 @@
 /**
  * Power Automate URL canonicalizer (content script).
  * Normalizes flow/run URLs to the user-selected `v3` value and aligns `v3survey` when that key already exists.
- * Assigns `globalThis.PowerAutomateUrlPolicy` for optional DevTools inspection (same object as the `PowerAutomateUrlPolicy` export from `./url-policy`).
+ * Assigns `globalThis.PowerAutomateUrlPolicy` for optional DevTools inspection (same implementation as
+ * `./url-policy`; this bundle has its own module instance, configured from storage like the service worker).
  */
 import { parseEnforcedV3, STORAGE_KEY_ENFORCED_V3 } from "./constants";
 import { isEnforcedV3SyncChange } from "./storage-sync";

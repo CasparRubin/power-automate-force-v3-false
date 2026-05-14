@@ -1,4 +1,8 @@
-import { RULESET_V3_FALSE_ID, RULESET_V3_TRUE_ID, type EnforcedV3 } from "./constants";
+import {
+  DNR_RULESET_CLASSIC_EDITOR_ID,
+  DNR_RULESET_NEW_DESIGNER_ID,
+  type EnforcedV3,
+} from "./constants";
 
 /** Options passed to `chrome.declarativeNetRequest.updateEnabledRulesets`. */
 export function buildUpdateRulesetOptions(mode: EnforcedV3): {
@@ -7,7 +11,7 @@ export function buildUpdateRulesetOptions(mode: EnforcedV3): {
 } {
   const useTrue = mode === "true";
   return {
-    enableRulesetIds: useTrue ? [RULESET_V3_TRUE_ID] : [RULESET_V3_FALSE_ID],
-    disableRulesetIds: useTrue ? [RULESET_V3_FALSE_ID] : [RULESET_V3_TRUE_ID],
+    enableRulesetIds: useTrue ? [DNR_RULESET_NEW_DESIGNER_ID] : [DNR_RULESET_CLASSIC_EDITOR_ID],
+    disableRulesetIds: useTrue ? [DNR_RULESET_CLASSIC_EDITOR_ID] : [DNR_RULESET_NEW_DESIGNER_ID],
   };
 }

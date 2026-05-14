@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { RULESET_V3_FALSE_ID, RULESET_V3_TRUE_ID } from "../src/constants";
+import { DNR_RULESET_CLASSIC_EDITOR_ID, DNR_RULESET_NEW_DESIGNER_ID } from "../src/constants";
 import { buildUpdateRulesetOptions } from "../src/dnr-rulesets";
 
 describe("buildUpdateRulesetOptions", () => {
-  it("enables false ruleset and disables true when mode is false", () => {
+  it("enables classic-editor ruleset and disables new-designer when mode is false", () => {
     const opts = buildUpdateRulesetOptions("false");
-    expect(opts.enableRulesetIds).toEqual([RULESET_V3_FALSE_ID]);
-    expect(opts.disableRulesetIds).toEqual([RULESET_V3_TRUE_ID]);
+    expect(opts.enableRulesetIds).toEqual([DNR_RULESET_CLASSIC_EDITOR_ID]);
+    expect(opts.disableRulesetIds).toEqual([DNR_RULESET_NEW_DESIGNER_ID]);
   });
 
-  it("enables true ruleset and disables false when mode is true", () => {
+  it("enables new-designer ruleset and disables classic-editor when mode is true", () => {
     const opts = buildUpdateRulesetOptions("true");
-    expect(opts.enableRulesetIds).toEqual([RULESET_V3_TRUE_ID]);
-    expect(opts.disableRulesetIds).toEqual([RULESET_V3_FALSE_ID]);
+    expect(opts.enableRulesetIds).toEqual([DNR_RULESET_NEW_DESIGNER_ID]);
+    expect(opts.disableRulesetIds).toEqual([DNR_RULESET_CLASSIC_EDITOR_ID]);
   });
 
   it("never enables both rulesets", () => {

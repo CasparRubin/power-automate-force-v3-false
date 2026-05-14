@@ -73,7 +73,10 @@ export default function App() {
             <Label.Root htmlFor="mode-false" className="cursor-pointer text-sm font-medium">
               Classic editor (v3=false)
             </Label.Root>
-            <p className="text-xs text-slate-500">Force the legacy flow designer experience.</p>
+            <p className="text-xs text-slate-500">
+              Classic editor experience (`v3=false`); keeps this mode when links omit or change the{" "}
+              <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px]">v3</code> flag.
+            </p>
           </div>
         </div>
 
