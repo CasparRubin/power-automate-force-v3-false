@@ -303,9 +303,7 @@ export default function App() {
           <div className={TAB_PANEL_CLASS}>
             <div className="flex flex-col gap-3 pr-2">
               <div className="flex flex-col gap-0.5">
-                <h1 className="text-sm font-semibold tracking-tight text-foreground">
-                  Editor preference
-                </h1>
+                <h1 className="text-sm font-semibold tracking-tight text-foreground">Editor</h1>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   Choose how flow and run links open in Power Automate: classic designer, new
                   designer, or paused. Paused turns off link changes until you pick an editor again.

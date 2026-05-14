@@ -1,7 +1,7 @@
 /**
- * Fail the build if superseded project strings appear anywhere under the repo
- * (excluding node_modules, dist, .git). Patterns cover legacy GitHub repo slugs, a former
- * npm package name, and a retired public display title — see the `forbidden` list.
+ * Fail the build if superseded name strings appear anywhere under the repo
+ * (excluding node_modules, dist, .git). Patterns include a retired Helvety Store slug fragment,
+ * legacy GitHub/repo slugs, and a retired browser display title — see the `forbidden` list.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -12,7 +12,7 @@ const skipDirNames = new Set(["node_modules", "dist", ".git"]);
 
 /** @type {{ label: string; re: RegExp }[]} */
 const forbidden = [
-  { label: "legacy repo slug power-automate-force-v3-false", re: /power-automate-force-v3-false/i },
+  { label: "legacy store slug editor-preference", re: /editor-preference/i },
   { label: "legacy repo slug power-automate-v3-false", re: /power-automate-v3-false/i },
   { label: "legacy repo slug power_automate_v3_false", re: /power_automate_v3_false/i },
   { label: "legacy package name power-automate-v3-enforcer", re: /power-automate-v3-enforcer/i },

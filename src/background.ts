@@ -81,7 +81,7 @@ async function reconcileFromStorage(): Promise<void> {
     PowerAutomateUrlPolicy.configure({ preference, v3surveyEnabled: surveyOn });
     await applyRulesetsForPreference(preference);
   } catch (error) {
-    console.error("[power-automate-version-enforcer] reconcileFromStorage failed", error);
+    console.error("[power-automate-editor-version-enforcer] reconcileFromStorage failed", error);
   }
 }
 

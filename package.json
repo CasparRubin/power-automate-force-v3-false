@@ -1,5 +1,5 @@
 {
-  "name": "power-automate-version-enforcer",
+  "name": "power-automate-editor-version-enforcer",
   "private": true,
   "type": "module",
   "repository": {

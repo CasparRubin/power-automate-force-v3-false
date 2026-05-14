@@ -51,18 +51,18 @@ Source lives under `src/`. The loadable extension is produced in **`dist/`** aft
 
 ### Scripts
 
-| Command                 | Purpose                                                                                                                                                          |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run build`         | Clear `dist/`, copy `public/` → `dist/`, bundle `background` + `content` with esbuild, build the React popup with Vite.                                          |
-| `npm run watch`         | **Popup only:** Vite watch rebuilds `dist/popup.html` and `dist/popup-assets/*`. After editing the service worker or content script, run a full `npm run build`. |
-| `npm run test`          | Run **Vitest** unit tests under `tests/` (Node environment; no browser, no Playwright).                                                                          |
-| `npm run typecheck`     | `tsc --noEmit` on the TypeScript project.                                                                                                                        |
-| `npm run lint`          | ESLint on the repo (`eslint .`, ignoring `dist/` and `node_modules/`): `src/`, `tests/`, `scripts/`, config files.                                               |
-| `npm run lint:fix`      | ESLint with `--fix`.                                                                                                                                             |
-| `npm run format`        | Prettier `--write` on the repo (respects `.prettierignore`).                                                                                                     |
-| `npm run format:check`  | Prettier `--check` (CI-style).                                                                                                                                   |
-| `npm run verify:naming` | Fails if superseded repo slugs, old package name, or old store display title appear in scanned sources (see `scripts/verify-project-naming.mjs`).                |
-| `npm run predeploy`     | `verify:naming` → `format:check` → `lint` → `typecheck` → `test` → `build` (run before releases).                                                                |
+| Command                 | Purpose                                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run build`         | Clear `dist/`, copy `public/` → `dist/`, bundle `background` + `content` with esbuild, build the React popup with Vite.                                                              |
+| `npm run watch`         | **Popup only:** Vite watch rebuilds `dist/popup.html` and `dist/popup-assets/*`. After editing the service worker or content script, run a full `npm run build`.                     |
+| `npm run test`          | Run **Vitest** unit tests under `tests/` (Node environment; no browser, no Playwright).                                                                                              |
+| `npm run typecheck`     | `tsc --noEmit` on the TypeScript project.                                                                                                                                            |
+| `npm run lint`          | ESLint on the repo (`eslint .`, ignoring `dist/` and `node_modules/`): `src/`, `tests/`, `scripts/`, config files.                                                                   |
+| `npm run lint:fix`      | ESLint with `--fix`.                                                                                                                                                                 |
+| `npm run format`        | Prettier `--write` on the repo (respects `.prettierignore`).                                                                                                                         |
+| `npm run format:check`  | Prettier `--check` (CI-style).                                                                                                                                                       |
+| `npm run verify:naming` | Fails if strings in `scripts/verify-project-naming.mjs` `forbidden` (retired Helvety store slug fragment, legacy repo slugs, retired display title, etc.) appear in scanned sources. |
+| `npm run predeploy`     | `verify:naming` → `format:check` → `lint` → `typecheck` → `test` → `build` (run before releases).                                                                                    |
 
 ## Unit tests
 
@@ -99,7 +99,7 @@ Tests run **locally** with [Vitest](https://vitest.dev/) **4.x** (see `package.j
 | [`src/popup/`](./src/popup/)                                                                                                            | React popup: Editor / Survey / About tabs; sync-backed enforcement and Survey (`v3surveyEnabled`); **local-only** theme (`theme-preference.ts`, `theme-boot.ts` before React for CSP-safe first paint); reload of the last-focused flow/run tab after saves when enforcement is on (skipped while Paused). `about-meta.ts` exports public URLs and `EXTENSION_DISPLAY_NAME` (must match manifest `name`). |
 | [`vite.popup.config.ts`](./vite.popup.config.ts)                                                                                        | Vite config for the popup bundle (`base: './'`, `popup-assets/` for hashed JS/CSS).                                                                                                                                                                                                                                                                                                                       |
 | [`scripts/prebuild-copy-public.mjs`](./scripts/prebuild-copy-public.mjs)                                                                | Clears `dist/` and copies `public/` before bundling.                                                                                                                                                                                                                                                                                                                                                      |
-| [`scripts/verify-project-naming.mjs`](./scripts/verify-project-naming.mjs)                                                              | Pre-release guard: errors if superseded repo slugs, old npm package name, or old store display title reappear in scanned files (see the `forbidden` list in the script).                                                                                                                                                                                                                                  |
+| [`scripts/verify-project-naming.mjs`](./scripts/verify-project-naming.mjs)                                                              | Pre-release guard: errors if `forbidden` patterns (see script) reappear in scanned files — retired Helvety store slug fragment, legacy repo slugs, retired display title, etc.                                                                                                                                                                                                                            |
 | [`tests/*.test.ts`](./tests/)                                                                                                           | Vitest unit suites (see **Unit tests** above).                                                                                                                                                                                                                                                                                                                                                            |
 
 ## Browser compatibility
@@ -158,7 +158,7 @@ For a release-style gate (naming scan + the above), use **`npm run predeploy`**.
 2. Tag from the repo root (annotated tag matches the manifest line, with a `v` prefix):
 
    ```bash
-   git tag -a vX.Y.Z -m "Release vX.Y.Z"   # e.g. manifest "2.3.0" → tag v2.3.0
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"   # e.g. manifest "2.4.0" → tag v2.4.0
    git push origin main
    git push origin vX.Y.Z
    ```
