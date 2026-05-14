@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeInfo,
   ExternalLink,
@@ -36,7 +36,8 @@ import {
   SOURCE_REPO_URL,
 } from "./about-meta";
 import { HelvetyMark } from "./components/HelvetyMark";
-import { reloadFocusedTargetTabIfApplicable } from "./reload-focused-target-tab";
+import { persistPolicyPreferenceAndOptionalReload } from "./persist-policy-preference";
+import { createAsyncQueue } from "./sync-write-queue";
 import {
   applyThemeClassToDocument,
   defaultThemeFromSystem,
@@ -50,6 +51,24 @@ type SurveyEnabledSync = "true" | "false";
 /** Tab body: native scroll + `.popup-tab-scroll` themed scrollbar (see index.css). */
 const TAB_PANEL_CLASS =
   "popup-tab-scroll min-h-40 max-h-72 w-full overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable]";
+
+function PolicyPanelBusyHint({
+  isPolicySyncBusy,
+  isTargetTabReloadBusy,
+}: {
+  isPolicySyncBusy: boolean;
+  isTargetTabReloadBusy: boolean;
+}) {
+  if (isPolicySyncBusy) {
+    return <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Saving…</span>;
+  }
+  if (isTargetTabReloadBusy) {
+    return (
+      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Reloading tab…</span>
+    );
+  }
+  return null;
+}
 
 function readExtensionVersion(): string {
   if (typeof chrome !== "undefined" && chrome.runtime?.getManifest) {
@@ -67,11 +86,32 @@ export default function App() {
   );
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState<string>("");
+  /** True while `chrome.storage.sync.set` is in flight for editor or survey policy keys. */
   const [isPolicySyncBusy, setIsPolicySyncBusy] = useState(false);
+  /** True while `chrome.tabs.reload` runs for a flow/run tab (inputs stay enabled). */
+  const [isTargetTabReloadBusy, setIsTargetTabReloadBusy] = useState(false);
   const [extensionVersion, setExtensionVersion] = useState<string>("");
   const statusClearTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
   const enforcementRef = useRef<EnforcementPreference>(DEFAULT_ENFORCEMENT_PREFERENCE);
+  const syncWriteDepthRef = useRef(0);
+  const editorWriteQueue = useMemo(() => createAsyncQueue(), []);
+  const surveyWriteQueue = useMemo(() => createAsyncQueue(), []);
+
+  const beginSyncWrite = useCallback(() => {
+    syncWriteDepthRef.current += 1;
+    if (syncWriteDepthRef.current === 1) {
+      setIsPolicySyncBusy(true);
+    }
+  }, []);
+
+  const endSyncWrite = useCallback(() => {
+    syncWriteDepthRef.current -= 1;
+    if (syncWriteDepthRef.current <= 0) {
+      syncWriteDepthRef.current = 0;
+      setIsPolicySyncBusy(false);
+    }
+  }, []);
 
   useEffect(() => {
     enforcementRef.current = value;
@@ -163,114 +203,61 @@ export default function App() {
   const onSave = useCallback(
     (next: EnforcementPreference) => {
       setValue(next);
-      void (async () => {
-        clearPendingStatusDismiss();
-        setIsPolicySyncBusy(true);
-        setStatus("Saving preference…");
-        let statusAutoDismissMs = 2000;
-        try {
-          await chrome.storage.sync.set({ [STORAGE_KEY_ENFORCED_V3]: next });
-          if (!mountedRef.current) {
-            return;
-          }
-          if (next !== "off") {
-            setStatus("Refreshing open Power Automate tab…");
-          }
-          const tabReloaded = await reloadFocusedTargetTabIfApplicable(next);
-          if (!mountedRef.current) {
-            return;
-          }
-          setStatus("Saved.");
-          if (tabReloaded) {
-            statusAutoDismissMs = 3800;
-          }
-        } catch (error: unknown) {
-          if (!mountedRef.current) {
-            return;
-          }
-          statusAutoDismissMs = 2000;
-          try {
-            await resyncFromStorage();
-          } catch {
-            if (mountedRef.current) {
-              setValue(DEFAULT_ENFORCEMENT_PREFERENCE);
-            }
-          }
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Save failed. Check Chrome sync sign-in, then try again.";
-          if (mountedRef.current) {
-            setStatus(message);
-          }
-        } finally {
-          if (mountedRef.current) {
-            setIsPolicySyncBusy(false);
-            scheduleStatusClear(statusAutoDismissMs);
-          } else {
-            setIsPolicySyncBusy(false);
-          }
-        }
-      })();
+      void editorWriteQueue.enqueue(() =>
+        persistPolicyPreferenceAndOptionalReload({
+          storagePatch: { [STORAGE_KEY_ENFORCED_V3]: next },
+          logLabel: "enforcedV3",
+          getReloadPreference: () => next,
+          mountedRef,
+          beginSyncWrite,
+          endSyncWrite,
+          clearPendingStatusDismiss,
+          setStatus,
+          setIsTargetTabReloadBusy,
+          resyncFromStorage,
+          scheduleStatusClear,
+          onResyncHardFailure: () => setValue(DEFAULT_ENFORCEMENT_PREFERENCE),
+        }),
+      );
     },
-    [clearPendingStatusDismiss, resyncFromStorage, scheduleStatusClear],
+    [
+      beginSyncWrite,
+      clearPendingStatusDismiss,
+      editorWriteQueue,
+      endSyncWrite,
+      resyncFromStorage,
+      scheduleStatusClear,
+    ],
   );
 
   const onSaveSurvey = useCallback(
     (next: SurveyEnabledSync) => {
       setSurveyMode(next);
-      void (async () => {
-        clearPendingStatusDismiss();
-        setIsPolicySyncBusy(true);
-        setStatus("Saving preference…");
-        let statusAutoDismissMs = 2000;
-        try {
-          await chrome.storage.sync.set({ [STORAGE_KEY_V3SURVEY_ENABLED]: next });
-          if (!mountedRef.current) {
-            return;
-          }
-          const editorMode = enforcementRef.current;
-          if (editorMode !== "off") {
-            setStatus("Refreshing open Power Automate tab…");
-          }
-          const tabReloaded = await reloadFocusedTargetTabIfApplicable(editorMode);
-          if (!mountedRef.current) {
-            return;
-          }
-          setStatus("Saved.");
-          if (tabReloaded) {
-            statusAutoDismissMs = 3800;
-          }
-        } catch (error: unknown) {
-          if (!mountedRef.current) {
-            return;
-          }
-          statusAutoDismissMs = 2000;
-          try {
-            await resyncFromStorage();
-          } catch {
-            if (mountedRef.current) {
-              setSurveyMode("false");
-            }
-          }
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Save failed. Check Chrome sync sign-in, then try again.";
-          if (mountedRef.current) {
-            setStatus(message);
-          }
-        } finally {
-          if (mountedRef.current) {
-            setIsPolicySyncBusy(false);
-            scheduleStatusClear(statusAutoDismissMs);
-          } else {
-            setIsPolicySyncBusy(false);
-          }
-        }
-      })();
+      void surveyWriteQueue.enqueue(() =>
+        persistPolicyPreferenceAndOptionalReload({
+          storagePatch: { [STORAGE_KEY_V3SURVEY_ENABLED]: next },
+          logLabel: "v3survey",
+          getReloadPreference: () => enforcementRef.current,
+          mountedRef,
+          beginSyncWrite,
+          endSyncWrite,
+          clearPendingStatusDismiss,
+          setStatus,
+          setIsTargetTabReloadBusy,
+          resyncFromStorage,
+          scheduleStatusClear,
+          onResyncHardFailure: () => setSurveyMode("false"),
+        }),
+      );
     },
-    [clearPendingStatusDismiss, resyncFromStorage, scheduleStatusClear],
+    [
+      beginSyncWrite,
+      clearPendingStatusDismiss,
+      endSyncWrite,
+      resyncFromStorage,
+      scheduleStatusClear,
+      surveyWriteQueue,
+    ],
   );
 
   useEffect(() => {
@@ -321,7 +308,6 @@ export default function App() {
         <TabsList className="grid h-auto w-full grid-cols-3 gap-0.5 bg-muted p-1 text-xs">
           <TabsTrigger
             value="editor"
-            disabled={isPolicySyncBusy}
             className="flex flex-col gap-0.5 px-2 py-2 text-xs shadow-none"
           >
             <PenLine className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -329,7 +315,6 @@ export default function App() {
           </TabsTrigger>
           <TabsTrigger
             value="survey"
-            disabled={isPolicySyncBusy}
             className="flex flex-col gap-0.5 px-2 py-2 text-xs shadow-none"
           >
             <MessageSquare className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -337,7 +322,6 @@ export default function App() {
           </TabsTrigger>
           <TabsTrigger
             value="about"
-            disabled={isPolicySyncBusy}
             className="flex flex-col gap-0.5 px-2 py-2 text-xs shadow-none"
           >
             <BadgeInfo className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -345,13 +329,13 @@ export default function App() {
           </TabsTrigger>
         </TabsList>
 
-        {status || isPolicySyncBusy ? (
+        {status || isPolicySyncBusy || isTargetTabReloadBusy ? (
           <div
             role="status"
             aria-live="polite"
             className="mt-2 flex min-h-[1.25rem] items-center gap-2 text-xs text-muted-foreground"
           >
-            {isPolicySyncBusy ? (
+            {isPolicySyncBusy || isTargetTabReloadBusy ? (
               <Loader2
                 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground"
                 aria-hidden
@@ -362,10 +346,16 @@ export default function App() {
         ) : null}
 
         <TabsContent value="editor" className="mt-2 outline-none">
-          <div className={TAB_PANEL_CLASS}>
+          <div className={TAB_PANEL_CLASS} aria-busy={isPolicySyncBusy || isTargetTabReloadBusy}>
             <div className="flex flex-col gap-3 pr-2">
               <div className="flex flex-col gap-0.5">
-                <h1 className="text-sm font-semibold tracking-tight text-foreground">Editor</h1>
+                <div className="flex min-h-[1.25rem] items-baseline justify-between gap-2">
+                  <h1 className="text-sm font-semibold tracking-tight text-foreground">Editor</h1>
+                  <PolicyPanelBusyHint
+                    isPolicySyncBusy={isPolicySyncBusy}
+                    isTargetTabReloadBusy={isTargetTabReloadBusy}
+                  />
+                </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   Choose how flow and run links open in Power Automate: classic designer, new
                   designer, or paused. Paused turns off link changes until you pick an editor again.
@@ -430,12 +420,18 @@ export default function App() {
         </TabsContent>
 
         <TabsContent value="survey" className="mt-2 outline-none">
-          <div className={TAB_PANEL_CLASS}>
+          <div className={TAB_PANEL_CLASS} aria-busy={isPolicySyncBusy || isTargetTabReloadBusy}>
             <div className="flex flex-col gap-3 pr-2">
               <div className="flex flex-col gap-1.5">
-                <h2 className="text-sm font-semibold text-foreground">
-                  Survey (<code className="text-[11px]">v3survey</code>)
-                </h2>
+                <div className="flex min-h-[1.25rem] items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Survey (<code className="text-[11px]">v3survey</code>)
+                  </h2>
+                  <PolicyPanelBusyHint
+                    isPolicySyncBusy={isPolicySyncBusy}
+                    isTargetTabReloadBusy={isTargetTabReloadBusy}
+                  />
+                </div>
                 <div className="flex flex-col gap-1 text-xs leading-relaxed text-muted-foreground">
                   <p>
                     Microsoft may tie a short in-product survey to the{" "}

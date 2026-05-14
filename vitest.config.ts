@@ -2,9 +2,10 @@ import { defineConfig } from "vitest/config";
 
 /**
  * Coverage is scoped to modules exercised by unit tests. Entry points (`background`, `content`),
- * the React popup shell, and shadcn UI primitives are excluded so thresholds reflect logic we test
- * in Node rather than E2E browser targets. Smaller modules such as `action-badge.ts` stay included
- * (stubbed `chrome` in tests).
+ * the React popup shell, `persist-policy-preference.ts`, `policy-popup-log.ts`, and shadcn UI
+ * primitives are excluded so thresholds reflect logic we test in Node rather than E2E browser
+ * targets (those pieces have dedicated tests or are DEV-only / UI glue). Smaller modules such as
+ * `action-badge.ts` stay included (stubbed `chrome` in tests).
  */
 export default defineConfig({
   test: {
@@ -22,6 +23,8 @@ export default defineConfig({
         "src/popup/App.tsx",
         "src/popup/main.tsx",
         "src/popup/theme-boot.ts",
+        "src/popup/persist-policy-preference.ts",
+        "src/popup/policy-popup-log.ts",
         "src/components/**",
         "src/popup/components/**",
       ],

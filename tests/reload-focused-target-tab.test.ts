@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../src/popup/policy-popup-log", () => ({
+  policyPopupLog: vi.fn(),
+}));
+
 import { reloadFocusedTargetTabIfApplicable } from "../src/popup/reload-focused-target-tab";
 
 const FLOW_TAB_URL = "https://emea.powerautomate.com/environments/foo/flows/bar/details?v3=false";
@@ -85,6 +90,16 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
     await expect(reloadFocusedTargetTabIfApplicable("false")).resolves.toBe(true);
     expect(reload).toHaveBeenCalledWith(9);
+  });
+
+  it("reloads when active tab is flow.microsoft.com with /flows/ path", async () => {
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const flowHostUrl =
+      "https://flow.microsoft.com/manage/environments/foo/flows/bar/guid/details?v3=false";
+    const chromeMock = chromeTabsStub([{ id: 11, url: flowHostUrl }], reload);
+    vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
+    await expect(reloadFocusedTargetTabIfApplicable("false")).resolves.toBe(true);
+    expect(reload).toHaveBeenCalledWith(11);
   });
 
   it("resolves false when reload rejects (e.g. tab closed)", async () => {
