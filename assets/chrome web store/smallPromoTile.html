@@ -1,364 +1,441 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=440, height=280" />
-  <title>Small promo tile — v3=false</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=440, height=280" />
+    <title>Small promo tile — Power Automate version enforcer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    html, body {
-      width: 440px;
-      height: 280px;
-      overflow: hidden;
-      background: #fff;
-    }
+      html,
+      body {
+        width: 440px;
+        height: 280px;
+        overflow: hidden;
+        background: #fff;
+      }
 
-    .artboard {
-      width: 440px;
-      height: 280px;
-      border: none;
-      position: relative;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-      background-color: #fff;
-      /* Feathered frame — no hard stroke */
-      box-shadow:
-        0 0 0 1px rgba(0, 0, 0, 0.08),
-        0 0 6px rgba(0, 0, 0, 0.12),
-        0 0 24px rgba(0, 0, 0, 0.06) inset,
-        0 0 48px rgba(0, 0, 0, 0.04) inset;
-    }
+      .artboard {
+        width: 440px;
+        height: 280px;
+        border: none;
+        position: relative;
+        overflow: hidden;
+        font-family: system-ui, sans-serif;
+        background-color: #fafafa;
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.08),
+          0 0 6px rgba(0, 0, 0, 0.12),
+          0 0 24px rgba(0, 0, 0, 0.06) inset,
+          0 0 48px rgba(0, 0, 0, 0.04) inset;
+      }
 
-    /* One shared pattern layer — sits behind stage + fake window + address bar */
-    .artboard::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      background-image:
-        radial-gradient(circle, rgba(0, 0, 0, 0.04) 0.9px, transparent 1.05px),
-        linear-gradient(rgba(0, 0, 0, 0.018) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.018) 1px, transparent 1px),
-        repeating-linear-gradient(
-          38deg,
-          transparent,
-          transparent 10px,
-          rgba(0, 0, 0, 0.01) 10px,
-          rgba(0, 0, 0, 0.01) 11px
+      /* Neutral lift — rest of tile stays flat */
+      .artboard::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+      }
+
+      /* Grey grid + dots; diagonal fade (strong TR / BL, soft center) */
+      .geom-backdrop {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        display: block;
+      }
+
+      .stage {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 28px 28px;
+        perspective: 1100px;
+        perspective-origin: 50% 40%;
+      }
+
+      /* Simplified “window” — bezel only, no controls */
+      .window {
+        transform-style: preserve-3d;
+        transform: rotateX(7deg) rotateY(-10deg) translateZ(8px);
+        width: 100%;
+        max-width: 372px;
+        border-radius: 18px;
+        padding: 4px;
+        /* Dark chrome — sits over light geometrical backdrop */
+        background: linear-gradient(
+          155deg,
+          rgba(42, 44, 52, 0.9) 0%,
+          rgba(28, 30, 38, 0.92) 40%,
+          rgba(20, 22, 30, 0.93) 100%
         );
-      background-size:
-        14px 14px,
-        26px 26px,
-        26px 26px,
-        100% 100%;
-      background-position: 0 0, 0 0, 0 0, 0 0;
-    }
+        box-shadow:
+          0 0 8px rgba(0, 0, 0, 0.45),
+          0 0 22px rgba(0, 0, 0, 0.22),
+          0 0 40px rgba(0, 0, 0, 0.12),
+          inset 0 0 28px rgba(255, 255, 255, 0.04),
+          inset 0 0 2px rgba(255, 255, 255, 0.06),
+          18px 36px 48px rgba(0, 0, 0, 0.28),
+          6px 12px 22px rgba(0, 0, 0, 0.2),
+          0 0 40px rgba(56, 189, 248, 0.06),
+          0 0 56px rgba(129, 140, 248, 0.05);
+      }
 
-    .stage {
-      position: relative;
-      z-index: 1;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 28px 28px;
-      perspective: 1100px;
-      perspective-origin: 50% 40%;
-    }
+      .window-inner {
+        border-radius: 16px;
+        padding: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background-color: rgba(18, 20, 26, 0.72);
+        background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 42%),
+          radial-gradient(ellipse 100% 70% at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 52%),
+          radial-gradient(
+            ellipse 80% 50% at 100% 100%,
+            rgba(129, 140, 248, 0.06) 0%,
+            transparent 45%
+          );
+        background-size:
+          100% 100%,
+          100% 100%,
+          100% 100%;
+        background-position:
+          0 0,
+          0 0,
+          0 0;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.05),
+          inset 0 0 36px rgba(0, 0, 0, 0.38),
+          inset 0 0 12px rgba(0, 0, 0, 0.2);
+      }
 
-    /* Simplified “window” — bezel only, no controls */
-    .window {
-      transform-style: preserve-3d;
-      transform: rotateX(7deg) rotateY(-10deg) translateZ(8px);
-      width: 100%;
-      max-width: 372px;
-      border-radius: 18px;
-      padding: 4px;
-      /* Dark chrome — frosted over shared artboard pattern */
-      background: linear-gradient(
-        155deg,
-        rgba(42, 44, 52, 0.9) 0%,
-        rgba(28, 30, 38, 0.92) 40%,
-        rgba(20, 22, 30, 0.93) 100%
-      );
-      box-shadow:
-        0 0 8px rgba(0, 0, 0, 0.45),
-        0 0 22px rgba(0, 0, 0, 0.22),
-        0 0 40px rgba(0, 0, 0, 0.12),
-        inset 0 0 28px rgba(255, 255, 255, 0.04),
-        inset 0 0 2px rgba(255, 255, 255, 0.06),
-        18px 36px 48px rgba(0, 0, 0, 0.28),
-        6px 12px 22px rgba(0, 0, 0, 0.2),
-        0 0 40px rgba(56, 189, 248, 0.06),
-        0 0 56px rgba(129, 140, 248, 0.05);
-    }
+      /* Windows 11 dark caption */
+      .caption-bar {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        height: 32px;
+        padding: 0 2px 0 8px;
+        background: linear-gradient(180deg, #2d3038 0%, #23262e 100%);
+        border-bottom: none;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.05),
+          inset 0 -18px 16px -12px rgba(0, 0, 0, 0.32),
+          inset 0 -4px 12px rgba(0, 0, 0, 0.15);
+      }
 
-    .window-inner {
-      border-radius: 16px;
-      padding: 0;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      background-color: rgba(18, 20, 26, 0.72);
-      background-image:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 42%),
-        radial-gradient(ellipse 100% 70% at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 52%),
-        radial-gradient(ellipse 80% 50% at 100% 100%, rgba(129, 140, 248, 0.06) 0%, transparent 45%);
-      background-size: 100% 100%, 100% 100%, 100% 100%;
-      background-position: 0 0, 0 0, 0 0;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        inset 0 0 36px rgba(0, 0, 0, 0.38),
-        inset 0 0 12px rgba(0, 0, 0, 0.2);
-    }
+      .caption-controls {
+        display: flex;
+        align-items: center;
+      }
 
-    /* Windows 11 dark caption */
-    .caption-bar {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      height: 32px;
-      padding: 0 2px 0 8px;
-      background: linear-gradient(180deg, #2d3038 0%, #23262e 100%);
-      border-bottom: none;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        inset 0 -18px 16px -12px rgba(0, 0, 0, 0.32),
-        inset 0 -4px 12px rgba(0, 0, 0, 0.15);
-    }
+      .cap-btn {
+        width: 34px;
+        height: 28px;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 4px;
+        background: transparent;
+        color: #d1d5db;
+        cursor: default;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-    .caption-controls {
-      display: flex;
-      align-items: center;
-    }
+      .cap-btn svg {
+        display: block;
+        pointer-events: none;
+      }
 
-    .cap-btn {
-      width: 34px;
-      height: 28px;
-      margin: 0;
-      padding: 0;
-      border: none;
-      border-radius: 4px;
-      background: transparent;
-      color: #d1d5db;
-      cursor: default;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+      .cap-btn.cap-close:hover {
+        background: #e81123;
+        color: #fff;
+      }
 
-    .cap-btn svg {
-      display: block;
-      pointer-events: none;
-    }
+      .cap-btn.cap-min:hover,
+      .cap-btn.cap-max:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
 
-    .cap-btn.cap-close:hover {
-      background: #e81123;
-      color: #fff;
-    }
+      .window-body {
+        padding: 14px 14px 16px;
+        flex: 1;
+        min-height: 0;
+      }
 
-    .cap-btn.cap-min:hover,
-    .cap-btn.cap-max:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .window-body {
-      padding: 14px 14px 16px;
-      flex: 1;
-      min-height: 0;
-    }
-
-    /* Address rail — darker iridescent bezel, dark omnibox */
-    .rail-wrap {
-      position: relative;
-      border-radius: 16px;
-      padding: 3px;
-      background: linear-gradient(
-        125deg,
-        #156b7a 0%,
-        #3d4f8f 26%,
-        #5c3d78 52%,
-        #1a6f82 78%,
-        #6b4088 100%
-      );
-      box-shadow:
-        0 10px 28px rgba(0, 0, 0, 0.28),
-        0 0 28px rgba(0, 0, 0, 0.12),
-        0 0 32px rgba(34, 211, 238, 0.07),
-        0 0 44px rgba(129, 140, 248, 0.06);
-    }
-
-    .rail {
-      border-radius: 13px;
-      padding: 16px 16px 18px;
-      background-color: rgba(6, 8, 12, 0.5);
-      background-image:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 32%),
-        linear-gradient(180deg, rgba(26, 28, 36, 0.9) 0%, rgba(10, 11, 16, 0.92) 100%),
-        radial-gradient(circle, rgba(255, 255, 255, 0.055) 0.9px, transparent 1.05px),
-        linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-        repeating-linear-gradient(
-          38deg,
-          transparent,
-          transparent 10px,
-          rgba(255, 255, 255, 0.014) 10px,
-          rgba(255, 255, 255, 0.014) 11px
+      /* Address rail — darker iridescent bezel, dark omnibox */
+      .rail-wrap {
+        position: relative;
+        border-radius: 16px;
+        padding: 3px;
+        background: linear-gradient(
+          125deg,
+          #156b7a 0%,
+          #3d4f8f 26%,
+          #5c3d78 52%,
+          #1a6f82 78%,
+          #6b4088 100%
         );
-      background-size:
-        100% 100%,
-        auto,
-        14px 14px,
-        26px 26px,
-        26px 26px,
-        100% 100%;
-      background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
-      box-shadow:
-        inset 0 10px 14px -8px rgba(255, 255, 255, 0.07),
-        inset 0 0 40px rgba(0, 0, 0, 0.45),
-        inset 0 0 14px rgba(0, 0, 0, 0.28);
-    }
+        box-shadow:
+          0 10px 28px rgba(0, 0, 0, 0.28),
+          0 0 28px rgba(0, 0, 0, 0.12),
+          0 0 32px rgba(34, 211, 238, 0.07),
+          0 0 44px rgba(129, 140, 248, 0.06);
+      }
 
-    .url-line {
-      font-family: "JetBrains Mono", ui-monospace, monospace;
-      font-size: 11px;
-      line-height: 1.45;
-      display: flex;
-      align-items: baseline;
-      gap: 0;
-      min-width: 0;
-      white-space: nowrap;
-      overflow: visible;
-    }
+      .rail {
+        border-radius: 13px;
+        padding: 16px 16px 18px;
+        background-color: rgba(6, 8, 12, 0.5);
+        background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 32%),
+          linear-gradient(180deg, rgba(26, 28, 36, 0.9) 0%, rgba(10, 11, 16, 0.92) 100%),
+          radial-gradient(circle, rgba(255, 255, 255, 0.055) 0.9px, transparent 1.05px),
+          linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+          repeating-linear-gradient(
+            38deg,
+            transparent,
+            transparent 10px,
+            rgba(255, 255, 255, 0.014) 10px,
+            rgba(255, 255, 255, 0.014) 11px
+          );
+        background-size:
+          100% 100%,
+          auto,
+          14px 14px,
+          26px 26px,
+          26px 26px,
+          100% 100%;
+        background-position:
+          0 0,
+          0 0,
+          0 0,
+          0 0,
+          0 0,
+          0 0;
+        box-shadow:
+          inset 0 10px 14px -8px rgba(255, 255, 255, 0.07),
+          inset 0 0 40px rgba(0, 0, 0, 0.45),
+          inset 0 0 14px rgba(0, 0, 0, 0.28);
+      }
 
-    .url-prefix {
-      flex: 1 1 auto;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: #8b9aad;
-      font-weight: 500;
-    }
+      .url-line {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 11px;
+        line-height: 1.45;
+        display: flex;
+        align-items: baseline;
+        gap: 0;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: visible;
+      }
 
-    .url-prefix .scheme {
-      color: #64748b;
-      font-weight: 500;
-    }
+      .url-prefix {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #8b9aad;
+        font-weight: 500;
+      }
 
-    .url-prefix .host-path {
-      color: #cbd5e1;
-      font-weight: 600;
-    }
+      .url-prefix .scheme {
+        color: #64748b;
+        font-weight: 500;
+      }
 
-    /* Continues the URL string — same rhythm as host-path */
-    .url-join {
-      flex-shrink: 0;
-      color: #94a3b8;
-      font-weight: 600;
-    }
+      .url-prefix .host-path {
+        color: #cbd5e1;
+        font-weight: 600;
+      }
 
-    /* Slight emphasis only: same line as URL, not a separate “sticker” */
-    .flag {
-      position: relative;
-      flex-shrink: 0;
-      display: inline-block;
-      margin-left: 0.02em;
-      font-size: 1.08em;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      line-height: inherit;
-    }
+      /* Continues the URL string — same rhythm as host-path */
+      .url-join {
+        flex-shrink: 0;
+        color: #94a3b8;
+        font-weight: 600;
+      }
 
-    .flag-glow {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%) scale(1.02);
-      z-index: 0;
-      font: inherit;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      white-space: nowrap;
-      pointer-events: none;
-      color: rgba(110, 231, 183, 0.5);
-      filter: blur(10px);
-      opacity: 0.55;
-    }
+      /* Slight emphasis only: same line as URL, not a separate “sticker” */
+      .flag {
+        position: relative;
+        flex-shrink: 0;
+        display: inline-block;
+        margin-left: 0.02em;
+        font-size: 1.08em;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        line-height: inherit;
+      }
 
-    .flag-text {
-      position: relative;
-      z-index: 1;
-      font: inherit;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      -webkit-font-smoothing: antialiased;
-    }
+      .flag-glow {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(1.02);
+        z-index: 0;
+        font: inherit;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        pointer-events: none;
+        color: rgba(110, 231, 183, 0.5);
+        filter: blur(10px);
+        opacity: 0.55;
+      }
 
-    /* Two-tone query flag: name vs value */
-    .flag-bit--k {
-      color: #7dd3fc;
-      text-shadow:
-        0 0 12px rgba(56, 189, 248, 0.4),
-        0 1px 2px rgba(0, 0, 0, 0.55);
-    }
+      .flag-text {
+        position: relative;
+        z-index: 1;
+        font: inherit;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        -webkit-font-smoothing: antialiased;
+      }
 
-    .flag-bit--v {
-      color: #86efac;
-      text-shadow:
-        0 0 12px rgba(52, 211, 153, 0.35),
-        0 1px 2px rgba(0, 0, 0, 0.55);
-    }
+      /* Two-tone query flag: name vs value */
+      .flag-bit--k {
+        color: #7dd3fc;
+        text-shadow:
+          0 0 12px rgba(56, 189, 248, 0.4),
+          0 1px 2px rgba(0, 0, 0, 0.55);
+      }
 
-  </style>
-</head>
-<body>
-  <div class="artboard">
-    <div class="stage">
-      <div class="window">
-        <div class="window-inner">
-          <div class="caption-bar" aria-hidden="true">
-            <div class="caption-controls">
-              <button type="button" class="cap-btn cap-min" tabindex="-1" title="Minimize">
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <path d="M2 6h8" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" />
-                </svg>
-              </button>
-              <button type="button" class="cap-btn cap-max" tabindex="-1" title="Maximize">
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <rect x="2.5" y="2.5" width="7" height="7" rx="0.5" stroke="currentColor" stroke-width="1.1" />
-                </svg>
-              </button>
-              <button type="button" class="cap-btn cap-close" tabindex="-1" title="Close">
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <path d="M3 3l6 6M9 3L3 9" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" />
-                </svg>
-              </button>
+      .flag-bit--v {
+        color: #86efac;
+        text-shadow:
+          0 0 12px rgba(52, 211, 153, 0.35),
+          0 1px 2px rgba(0, 0, 0, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Store marketing asset: URL shows v3=false as an example; the extension lets the user pick v3=false or v3=true in the popup. -->
+    <div class="artboard">
+      <svg
+        class="geom-backdrop"
+        xmlns="http://www.w3.org/2000/svg"
+        width="440"
+        height="280"
+        viewBox="0 0 440 280"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <defs>
+          <pattern id="geoGrid" patternUnits="userSpaceOnUse" width="22" height="22">
+            <rect width="22" height="22" fill="transparent" />
+            <path d="M0 0v22M0 0h22" stroke="#e3e4e9" stroke-width="0.55" />
+            <circle cx="0" cy="0" r="1.05" fill="#c9cad3" opacity="0.38" />
+          </pattern>
+          <!-- Luminance mask: light TR & BL, dark mid → grid fades in the middle along TR→BL -->
+          <linearGradient
+            id="geomDiagFade"
+            x1="100%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+            gradientUnits="objectBoundingBox"
+          >
+            <stop offset="0%" stop-color="#fff" />
+            <stop offset="40%" stop-color="#c4c4c8" />
+            <stop offset="50%" stop-color="#1a1a1e" />
+            <stop offset="60%" stop-color="#c4c4c8" />
+            <stop offset="100%" stop-color="#fff" />
+          </linearGradient>
+          <mask id="geomFadeMask" maskUnits="objectBoundingBox" x="0" y="0" width="1" height="1">
+            <rect width="1" height="1" fill="url(#geomDiagFade)" />
+          </mask>
+        </defs>
+        <g mask="url(#geomFadeMask)">
+          <rect width="100%" height="100%" fill="url(#geoGrid)" />
+        </g>
+      </svg>
+      <div class="stage">
+        <div class="window">
+          <div class="window-inner">
+            <div class="caption-bar" aria-hidden="true">
+              <div class="caption-controls">
+                <button type="button" class="cap-btn cap-min" tabindex="-1" title="Minimize">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path
+                      d="M2 6h8"
+                      stroke="currentColor"
+                      stroke-width="1.15"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <button type="button" class="cap-btn cap-max" tabindex="-1" title="Maximize">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <rect
+                      x="2.5"
+                      y="2.5"
+                      width="7"
+                      height="7"
+                      rx="0.5"
+                      stroke="currentColor"
+                      stroke-width="1.1"
+                    />
+                  </svg>
+                </button>
+                <button type="button" class="cap-btn cap-close" tabindex="-1" title="Close">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path
+                      d="M3 3l6 6M9 3L3 9"
+                      stroke="currentColor"
+                      stroke-width="1.15"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
-          <div class="window-body">
-            <div class="rail-wrap">
-              <div class="rail">
-                <p class="url-line">
-                  <span class="url-prefix" title="https://make.powerautomate.com/flows?">
-                    <span class="scheme">https://</span><span class="host-path">make.powerautomate.com/flows</span>
-                  </span><span class="url-join">?</span><span class="flag">
-                    <span class="flag-glow" aria-hidden="true">v3=false</span>
-                    <span class="flag-text"><span class="flag-bit flag-bit--k">v3=</span><span class="flag-bit flag-bit--v">false</span></span>
-                  </span>
-                </p>
+            <div class="window-body">
+              <div class="rail-wrap">
+                <div class="rail">
+                  <p class="url-line">
+                    <span class="url-prefix" title="https://make.powerautomate.com/flows?">
+                      <span class="scheme">https://</span
+                      ><span class="host-path">make.powerautomate.com/flows</span> </span
+                    ><span class="url-join">?</span
+                    ><span class="flag">
+                      <span class="flag-glow" aria-hidden="true">v3=false</span>
+                      <span class="flag-text"
+                        ><span class="flag-bit flag-bit--k">v3=</span
+                        ><span class="flag-bit flag-bit--v">false</span></span
+                      >
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</body>
+  </body>
 </html>

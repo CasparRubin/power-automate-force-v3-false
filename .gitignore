@@ -2,3 +2,5 @@
 .DS_Store
 _metadata/
 AGENT_RELEASE_NOTES.local.md
+node_modules/
+dist/

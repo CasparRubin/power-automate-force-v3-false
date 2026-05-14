@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "transform": {
+          "queryTransform": {
+            "addOrReplaceParams": [{ "key": "v3", "value": "true" }]
+          }
+        }
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://([a-z0-9-]+\\.)*powerautomate\\.com/.*/(flows|runs)/.*",
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "transform": {
+          "queryTransform": {
+            "addOrReplaceParams": [{ "key": "v3", "value": "true" }]
+          }
+        }
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://flow\\.microsoft\\.com/.*/(flows|runs)/.*",
+      "resourceTypes": ["main_frame"]
+    }
+  }
+]

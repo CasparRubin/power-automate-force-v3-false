@@ -1,6 +1,6 @@
-# Power Automate Force v3=false
+# Power Automate version enforcer
 
-Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and run URLs use `v3=false` and normalize `v3survey=false` (when present), even when the editor is opened through different navigation paths.
+Chrome/Edge extension (Manifest V3) that **enforces the Power Automate designer query mode you choose**: keep URLs on `v3=false` (classic editor) or `v3=true` (new designer), including when Microsoft links omit or flip the flag. When `v3survey` is already present on a target URL, it is normalized to the **same** boolean as your selected mode.
 
 **Developer:** [Helvety](https://helvety.com)
 
@@ -20,89 +20,127 @@ Minimal Chrome/Edge extension (Manifest V3) that ensures Power Automate flow and
   - `https://*.powerautomate.com/*`
   - `https://flow.microsoft.com/*`
 - Only changes URLs whose path contains `/flows/` or `/runs/`.
-- Adds `v3=false` if missing, or replaces it when the value is not already `false` (e.g. `v3=true`).
-- If a target URL includes `v3survey`, its value is normalized to `false`.
+- **Toolbar popup** (React + Tailwind + Radix): pick **Classic editor (`v3=false`)** or **New designer (`v3=true`)**. The choice is stored under `chrome.storage.sync` key `enforcedV3` and applied everywhere below. If the user has turned off Chrome sync, `chrome.storage.sync` still works; it behaves like local storage for that profile ([Chrome `storage` docs](https://developer.chrome.com/docs/extensions/reference/api/storage)).
+- Adds or replaces the `v3` query parameter so it always matches your selection.
+- If a target URL already includes `v3survey` (any casing), its value is normalized to the same enforced boolean; `v3survey` is **not** invented when absent.
 - Uses semantic URL dedupe to avoid rewrite loops on equivalent `/flows/new` URLs (for example `%20` vs `+` encoding differences).
-- Uses a layered architecture for reliability:
-  - **Layer 1:** `declarativeNetRequest` redirect rule with query transform (`v3=false`) on matching editor URLs.
-  - **Layer 2:** background `webNavigation` fallback that applies shared URL canonicalization (`v3=false`, plus `v3survey=false` when present).
-  - **Layer 3:** content-script fallback for SPA/internal route transitions using History API hooks, `popstate`, and a short-lived observer/polling window; also applies shared URL canonicalization.
+- **Layered enforcement** (aligned with Chromium MV3 best practices):
+  - **Layer 1:** `declarativeNetRequest` — two static rulesets (`rules-v3-false.json`, `rules-v3-true.json`); exactly one is enabled at a time via `updateEnabledRulesets`. After each **extension update**, the service worker reconciles enabled rulesets with storage (Chromium does not persist which static rulesets were enabled across extension updates; the manifest defaults apply until the service worker runs again—see [Declarative Net Request](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest)).
+  - **Layer 2:** Background `webNavigation` (`onCommitted`, `onHistoryStateUpdated`) rewrites navigations the declarative layer might miss, using the same URL policy as the content script.
+  - **Layer 3:** Content script at `document_start` for SPA transitions (`history.pushState` / `replaceState`, `popstate`, short-lived polling + `MutationObserver`).
 
-## Files
+## Build and load (development)
 
-| File | Purpose |
-|------|---------|
-| `manifest.json` | MV3 metadata, `icons`, and content script registration. |
-| `rules.json` | Declarative Net Request rules that normalize editor URLs to `v3=false` before load when possible. |
-| `background.js` | Imperative fallback for main-frame navigation/history updates missed by declarative rules. |
-| `url-policy.js` | Shared URL targeting/canonicalization policy used by both background and content layers. |
-| `content.js` | In-page fallback URL enforcement logic for SPA/internal transitions (bounded, loop-safe). |
-| `assets/v3False_*.png` | Extension icons (16, 32, 48, 128 px) referenced by `manifest.json` → `icons`. |
+Source lives under `src/`. The loadable extension is produced in **`dist/`** after a build.
 
-## Load unpacked (development)
+1. Install dependencies and build:
 
-1. Open `chrome://extensions` (Chrome) or `edge://extensions` (Edge).
-2. Enable **Developer mode**.
-3. Click **Load unpacked** and select this folder.
+   ```bash
+   npm install
+   npm run build
+   ```
+
+2. Open `chrome://extensions` (Chrome) or `edge://extensions` (Edge), enable **Developer mode**, click **Load unpacked**, and select the **`dist`** folder (not the repository root).
+
+3. After changing anything under `src/`, `public/`, or build config, run `npm run build` again before reloading the extension in the browser (the unpacked folder must be **`dist/`**, which is replaced on each full build).
+
+### Scripts
+
+| Command                 | Purpose                                                                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build`         | Copy `public/` → `dist/`, bundle `background` + `content` with esbuild, build the React popup with Vite.                                                         |
+| `npm run watch`         | **Popup only:** Vite watch rebuilds `dist/popup.html` and `dist/popup-assets/*`. After editing the service worker or content script, run a full `npm run build`. |
+| `npm run test`          | Run **Vitest** unit tests under `tests/` (Node environment; no browser, no Playwright).                                                                          |
+| `npm run typecheck`     | `tsc --noEmit` on the TypeScript project.                                                                                                                        |
+| `npm run lint`          | ESLint on `src/`, `tests/`, `scripts/`, and config files.                                                                                                        |
+| `npm run lint:fix`      | ESLint with `--fix`.                                                                                                                                             |
+| `npm run format`        | Prettier `--write` on the repo (respects `.prettierignore`).                                                                                                     |
+| `npm run format:check`  | Prettier `--check` (CI-style).                                                                                                                                   |
+| `npm run verify:naming` | Fails if legacy repo/package/display names appear in tracked-style sources (see `scripts/verify-project-naming.mjs`).                                            |
+| `npm run predeploy`     | `verify:naming` → `format:check` → `lint` → `typecheck` → `test` → `build` (run before releases).                                                                |
+
+## Unit tests
+
+Tests run **locally** with [Vitest](https://vitest.dev/) (already a devDependency). They use the **Node** environment. Small helpers (`dnr-rulesets`, `navigation-guards`, `storage-sync`, `constants`) are **pure functions**. `PowerAutomateUrlPolicy` keeps configurable state in the module; tests call `configure()` in `beforeEach` so each case starts from a known mode.
+
+| Suite                                                                  | What it covers                                                                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| [`tests/url-policy.test.ts`](./tests/url-policy.test.ts)               | URL targeting, canonicalization, `v3` / `v3survey` behavior for both enforced modes, edge cases (hash, duplicates). |
+| [`tests/constants.test.ts`](./tests/constants.test.ts)                 | `parseEnforcedV3`, `needsDefaultEnforcedV3Seed`, stable ids and storage key contract.                               |
+| [`tests/dnr-rulesets.test.ts`](./tests/dnr-rulesets.test.ts)           | `buildUpdateRulesetOptions` — which static ruleset is enabled per mode.                                             |
+| [`tests/navigation-guards.test.ts`](./tests/navigation-guards.test.ts) | `isMainFrameTabNavigation` — main-frame vs subframe filtering.                                                      |
+| [`tests/storage-sync.test.ts`](./tests/storage-sync.test.ts)           | `isEnforcedV3SyncChange` — background/content agree on when to react to storage events.                             |
+
+**Service worker and content** still call Chromium extension APIs at runtime; unit tests target the **pure helpers** and **URL policy** only, so we do not need browser automation or mocked `chrome.*` for those suites. This repository does not define GitHub Actions—run `npm run test` locally before releases or after refactors.
+
+## Repository layout
+
+| Path                                                                                                                      | Purpose                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`public/manifest.json`](./public/manifest.json)                                                                          | MV3 manifest copied into `dist/` on build.                                                                                                                                                                                                                       |
+| [`public/rules-v3-false.json`](./public/rules-v3-false.json) / [`public/rules-v3-true.json`](./public/rules-v3-true.json) | Declarative Net Request static rulesets (only one enabled at runtime).                                                                                                                                                                                           |
+| [`public/icons/`](./public/icons/)                                                                                        | PNG icons referenced by the manifest (kept outside Vite’s `popup-assets` output so the popup build does not overwrite them). The repo’s [`assets/`](./assets/) folder may contain extra artwork for store listings; it is **not** copied into `dist` by default. |
+| [`src/constants.ts`](./src/constants.ts)                                                                                  | Storage key, ruleset ids, `parseEnforcedV3`, `needsDefaultEnforcedV3Seed`, defaults.                                                                                                                                                                             |
+| [`src/url-policy.ts`](./src/url-policy.ts)                                                                                | Shared URL targeting and canonicalization (`PowerAutomateUrlPolicy.configure`, `canonicalizeToEnforced`, …).                                                                                                                                                     |
+| [`src/dnr-rulesets.ts`](./src/dnr-rulesets.ts)                                                                            | Pure mapping from enforced mode → DNR `updateEnabledRulesets` options.                                                                                                                                                                                           |
+| [`src/navigation-guards.ts`](./src/navigation-guards.ts)                                                                  | Pure main-frame navigation check used by the service worker.                                                                                                                                                                                                     |
+| [`src/storage-sync.ts`](./src/storage-sync.ts)                                                                            | Pure helper for `chrome.storage.onChanged` filtering (sync + `enforcedV3` key).                                                                                                                                                                                  |
+| [`src/background.ts`](./src/background.ts)                                                                                | Service worker: DNR ruleset toggling, storage listeners, `webNavigation` enforcement.                                                                                                                                                                            |
+| [`src/content.ts`](./src/content.ts)                                                                                      | In-page SPA URL enforcement; assigns `globalThis.PowerAutomateUrlPolicy` so the policy object is easy to inspect in DevTools (optional; not required for enforcement).                                                                                           |
+| [`src/popup/`](./src/popup/)                                                                                              | React popup UI.                                                                                                                                                                                                                                                  |
+| [`vite.popup.config.ts`](./vite.popup.config.ts)                                                                          | Vite config for the popup bundle (`base: './'`, `popup-assets/` for hashed JS/CSS).                                                                                                                                                                              |
+| [`scripts/prebuild-copy-public.mjs`](./scripts/prebuild-copy-public.mjs)                                                  | Clears `dist/` and copies `public/` before bundling.                                                                                                                                                                                                             |
+| [`scripts/verify-project-naming.mjs`](./scripts/verify-project-naming.mjs)                                                | Pre-release guard: errors if legacy project / package / display strings reappear in the tree.                                                                                                                                                                    |
+| [`tests/*.test.ts`](./tests/)                                                                                             | Vitest unit suites (see **Unit tests** above).                                                                                                                                                                                                                   |
 
 ## Browser compatibility
 
-- Manifest V3 extension intended for:
-  - Chrome (Stable)
-  - Microsoft Edge (Stable)
-- Implementation assumes support for:
-  - `declarativeNetRequest` query transforms
-  - `webNavigation` main-frame events
-  - History API and `MutationObserver` in content scripts
+- Manifest V3 extension intended for Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera, etc.).
+- Requires: `declarativeNetRequest` (query transforms), `webNavigation`, `storage`, History API, and `MutationObserver` in content scripts.
 
-## Store listing vs `manifest.json`
+## Store listing vs manifest
 
 What **comes from the manifest** (Chrome/Edge extension details):
 
-| Field | Role |
-|-------|------|
-| `name` | Title in the browser’s extension management UI. |
-| `version` | Version string shown in extension details. |
-| `description` | Short summary (often used as the default listing description unless you override it in the store dashboard). |
-| `homepage_url` | Optional link shown as the extension’s homepage / support site (here: Helvety). |
-| `icons` | Maps size keys to PNG paths; used in `chrome://extensions`, install UI, and Chrome Web Store (see [Manifest icons](https://developer.chrome.com/docs/extensions/mv3/manifest/icons)). |
+| Field          | Role                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `name`         | Title in the browser’s extension management UI.                                                              |
+| `version`      | Version string shown in extension details.                                                                   |
+| `description`  | Short summary (often used as the default listing description unless you override it in the store dashboard). |
+| `homepage_url` | Optional link shown as the extension’s homepage / support site (here: Helvety).                              |
+| `icons`        | Maps size keys to PNG paths under `icons/` in the built package.                                             |
 
 What **does not** live in the manifest (you set these in each store’s developer dashboard):
 
-- **Publisher / developer display name** (e.g. “Helvety”) — tied to your **Chrome Web Store** or **Microsoft Partner Center** account, not a manifest field.
+- **Publisher / developer display name** — tied to your store account.
 - **Screenshots, promotional images, detailed description** — uploaded in the store.
-- **Privacy policy URL** — set in the store listing/dashboard (recommended: `https://helvety.com/privacy`).
-- **Promo tiles** — e.g. 440×280 small promo; not in the manifest (see [Chrome Web Store images](https://developer.chrome.com/docs/webstore/images)). Package icons (`assets/v3False_*.png` + `icons` in the manifest) cover the extension icon requirement.
+- **Privacy policy URL** — set in the store listing (recommended: `https://helvety.com/privacy`).
 
 ## Implementation notes
 
-Comments in JS files match the current behavior. JSON does not allow `//` comments in `manifest.json`, so implementation details are documented in this README.
+- **Service worker listeners** (`webNavigation`, `tabs.onRemoved`, `storage.onChanged`) are registered at the **top level** of `background.ts`, per Google’s MV3 guidance (avoid registering listeners only inside async callbacks).
+- **Executable code** is fully bundled in the package (no remotely hosted extension logic), consistent with MV3 security expectations.
+- JSON does not allow `//` comments in `manifest.json`; details live in this README.
 
 ## Known limitations
 
 - URL enforcement applies only when pathname contains `/flows/` or `/runs/`.
-- `v3survey=false` is normalized only when `v3survey` already exists in the URL.
+- `v3survey` is normalized only when it already exists in the URL.
 - If Power Automate changes hostnames or route structures, matching rules may need updates.
 
 ## Lightweight regression checks
 
-- Run URL policy tests:
-  - `node tests/url-policy.test.js`
-- These tests cover mixed-case query keys, repeated params, encoded query variants, non-target pages, and invalid URLs.
+```bash
+npm run test
+npm run typecheck
+npm run build
+```
 
 ## Validation checklist
 
-Run these checks after loading unpacked:
+After `npm run build`, load **`dist`** unpacked and verify:
 
-- Direct URL open to editor page with `v3=true` -> URL becomes `v3=false`.
-- Direct URL open to editor page without `v3` -> URL gains `v3=false`.
-- Open flow from list/dashboard -> final URL contains `v3=false`.
-- Open run detail into editor -> final URL contains `v3=false`.
-- Browser back/forward into editor route -> final URL contains `v3=false`.
-- Open in new tab/window (`Ctrl/Cmd+Click`, context menu) -> final URL contains `v3=false`.
-- Deep link from notification/history -> final URL contains `v3=false`.
-- URL variants (extra params, repeated params) -> keep other params, normalize `v3=false`.
-- URL includes `v3survey=true` -> normalize to `v3survey=false`.
-- URL does not include `v3survey` -> do not add `v3survey`.
-- `/flows/new` URL variants that differ only in encoding (e.g. `%20` vs `+`) -> no repeated rewrite loop.
-- Non-target pages (no `/flows/` and no `/runs/`) -> unchanged.
+- **Mode `v3=false`:** direct open with `v3=true` → becomes `v3=false`; without `v3` → gains `v3=false`; `v3survey` present and not false → becomes `false`.
+- **Mode `v3=true`:** same scenarios with inverted expectations for `v3` / `v3survey`.
+- Popup: switching mode updates open Power Automate tabs after navigation or SPA URL changes (content script listens to `chrome.storage.onChanged`).
+- After packaging an update, confirm ruleset still matches the saved mode (background `onInstalled` + `update` path).

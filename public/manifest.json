@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Power Automate version enforcer",
+  "version": "2.0.0",
+  "description": "Choose v3=false or v3=true for Power Automate flow/run URLs; keeps v3 and v3survey (when present) aligned with your setting.",
+  "homepage_url": "https://helvety.com",
+  "permissions": ["declarativeNetRequest", "webNavigation", "storage"],
+  "host_permissions": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Power Automate version enforcer"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "editor-v3-false-rules",
+        "enabled": true,
+        "path": "rules-v3-false.json"
+      },
+      {
+        "id": "editor-v3-true-rules",
+        "enabled": false,
+        "path": "rules-v3-true.json"
+      }
+    ]
+  },
+  "icons": {
+    "16": "icons/v3False_16.png",
+    "32": "icons/v3False_32.png",
+    "48": "icons/v3False_48.png",
+    "128": "icons/v3False_128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
