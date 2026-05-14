@@ -1,8 +1,18 @@
 import type { EnforcementPreference } from "./constants";
 
-export type ToolbarBadgeSpec = {
+type ToolbarBadgeSpec = {
   text: string;
   backgroundColor: [number, number, number, number];
+};
+
+const BADGE_CLASSIC: ToolbarBadgeSpec = {
+  text: "C",
+  backgroundColor: [110, 85, 60, 255],
+};
+
+const BADGE_NEW_DESIGNER: ToolbarBadgeSpec = {
+  text: "N",
+  backgroundColor: [26, 115, 232, 255],
 };
 
 /**
@@ -12,16 +22,24 @@ export type ToolbarBadgeSpec = {
 export function enforcementPreferenceToToolbarBadge(
   preference: EnforcementPreference,
 ): ToolbarBadgeSpec | null {
-  if (preference === "off") {
-    return null;
+  switch (preference) {
+    case "off":
+      return null;
+    case "false":
+      return BADGE_CLASSIC;
+    case "true":
+      return BADGE_NEW_DESIGNER;
+    default: {
+      const _exhaustive: never = preference;
+      return _exhaustive;
+    }
   }
-  if (preference === "false") {
-    return { text: "C", backgroundColor: [110, 85, 60, 255] };
-  }
-  return { text: "N", backgroundColor: [26, 115, 232, 255] };
 }
 
-/** Invoked from the service worker after each successful `reconcileFromStorage` (sync-backed preference). */
+/**
+ * Invoked from the service worker during `reconcileFromStorage` (`background.ts`), immediately after
+ * `PowerAutomateUrlPolicy.configure` and before `declarativeNetRequest.updateEnabledRulesets` (same queued run).
+ */
 export function applyToolbarBadgeForEnforcement(preference: EnforcementPreference): void {
   const spec = enforcementPreferenceToToolbarBadge(preference);
   if (!spec) {

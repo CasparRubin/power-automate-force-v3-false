@@ -4,8 +4,9 @@
  * via `webNavigation` and `tabs.update` when enforcement is not paused. Static DNR JSON only adjusts `v3`;
  * `v3survey` (**Hide** / **Show**) uses the same URL policy as the content script.
  *
- * Navigations await {@link createPolicyLoadQueue} so URL logic never runs before the first storage-backed
- * `reconcileFromStorage` completes (Chrome MV3 storage preload pattern).
+ * Main-frame `webNavigation` listeners await `policyQueue.awaitReconcileCaughtUp()` before URL work so
+ * policy is never applied from stale default module state ahead of the first `chrome.storage.sync`-backed
+ * `reconcileFromStorage` (see `src/policy-load-queue.ts`, Chrome MV3 storage preload pattern).
  */
 import { applyToolbarBadgeForEnforcement } from "./action-badge";
 import {

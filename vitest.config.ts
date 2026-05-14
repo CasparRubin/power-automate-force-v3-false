@@ -3,7 +3,8 @@ import { defineConfig } from "vitest/config";
 /**
  * Coverage is scoped to modules exercised by unit tests. Entry points (`background`, `content`),
  * the React popup shell, and shadcn UI primitives are excluded so thresholds reflect logic we test
- * in Node rather than E2E browser targets.
+ * in Node rather than E2E browser targets. Smaller modules such as `action-badge.ts` stay included
+ * (stubbed `chrome` in tests).
  */
 export default defineConfig({
   test: {

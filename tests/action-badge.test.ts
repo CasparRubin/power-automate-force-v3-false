@@ -22,6 +22,15 @@ describe("enforcementPreferenceToToolbarBadge", () => {
     expect(spec!.text).toBe("N");
     expect(spec!.backgroundColor).toEqual([26, 115, 232, 255]);
   });
+
+  it("returns stable classic vs new objects (identity) for repeated calls", () => {
+    expect(enforcementPreferenceToToolbarBadge("false")).toBe(
+      enforcementPreferenceToToolbarBadge("false"),
+    );
+    expect(enforcementPreferenceToToolbarBadge("true")).toBe(
+      enforcementPreferenceToToolbarBadge("true"),
+    );
+  });
 });
 
 describe("applyToolbarBadgeForEnforcement", () => {
@@ -40,7 +49,7 @@ describe("applyToolbarBadgeForEnforcement", () => {
     expect(setBadgeBackgroundColor).not.toHaveBeenCalled();
   });
 
-  it.each(["false", "true"] as const)("sets text and color for %s", (preference) => {
+  it.each(["false", "true"] as const)("sets text then background color for %s", (preference) => {
     const setBadgeText = vi.fn();
     const setBadgeBackgroundColor = vi.fn();
     vi.stubGlobal("chrome", {
@@ -50,5 +59,8 @@ describe("applyToolbarBadgeForEnforcement", () => {
     const spec = enforcementPreferenceToToolbarBadge(preference)!;
     expect(setBadgeText).toHaveBeenCalledWith({ text: spec.text });
     expect(setBadgeBackgroundColor).toHaveBeenCalledWith({ color: spec.backgroundColor });
+    expect(setBadgeText.mock.invocationCallOrder[0]).toBeLessThan(
+      setBadgeBackgroundColor.mock.invocationCallOrder[0]!,
+    );
   });
 });

@@ -636,6 +636,13 @@ export default function App() {
                       Uses layered enforcement: declarative net request rules, background navigation
                       listeners, and a content script for SPA-style navigations.
                     </li>
+                    <li>
+                      The toolbar icon shows a small badge:{" "}
+                      <span className="font-medium text-foreground">C</span> for Classic or{" "}
+                      <span className="font-medium text-foreground">N</span> for New Designer; the
+                      badge is cleared while{" "}
+                      <span className="font-medium text-foreground">Paused</span>.
+                    </li>
                   </ul>
                   <p>
                     <a
