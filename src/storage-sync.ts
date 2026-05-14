@@ -1,12 +1,15 @@
-import { STORAGE_KEY_ENFORCED_V3 } from "./constants";
+import { STORAGE_KEY_ENFORCED_V3, STORAGE_KEY_V3SURVEY_ENABLED } from "./constants";
 
 /**
- * True when `chrome.storage.onChanged` fired for our preference in the sync area.
+ * True when sync storage changed for any option read by the service worker / content script
+ * (`enforcedV3` or `v3surveyEnabled`).
  */
-export function isEnforcedV3SyncChange(
-  areaName: string,
-  changes: Record<string, unknown>,
-  key: typeof STORAGE_KEY_ENFORCED_V3,
-): boolean {
-  return areaName === "sync" && Object.prototype.hasOwnProperty.call(changes, key);
+export function isEnforcerSyncChange(areaName: string, changes: Record<string, unknown>): boolean {
+  if (areaName !== "sync") {
+    return false;
+  }
+  return (
+    Object.prototype.hasOwnProperty.call(changes, STORAGE_KEY_ENFORCED_V3) ||
+    Object.prototype.hasOwnProperty.call(changes, STORAGE_KEY_V3SURVEY_ENABLED)
+  );
 }

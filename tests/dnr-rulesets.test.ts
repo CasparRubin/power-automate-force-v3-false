@@ -23,4 +23,14 @@ describe("buildUpdateRulesetOptions", () => {
       expect(enableRulesetIds[0]).not.toBe(disableRulesetIds[0]);
     }
   });
+
+  it("disables both rulesets when enforcement is off", () => {
+    const opts = buildUpdateRulesetOptions("off");
+    expect(opts.enableRulesetIds).toEqual([]);
+    expect(opts.disableRulesetIds).toEqual([
+      DNR_RULESET_CLASSIC_EDITOR_ID,
+      DNR_RULESET_NEW_DESIGNER_ID,
+    ]);
+    expect(new Set(opts.disableRulesetIds).size).toBe(2);
+  });
 });

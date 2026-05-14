@@ -1,11 +1,19 @@
 /**
  * Power Automate URL canonicalizer (content script).
- * Normalizes flow/run URLs to the user-selected `v3` value and aligns `v3survey` when that key already exists.
+ * When enforcement is active, normalizes flow/run URLs to the stored `v3` value. Optional `v3survey`
+ * handling depends on storage: default leaves `v3survey` untouched; when enabled, forces `v3survey=true`.
+ * When paused (`off`), canonicalization is a no-op and short-lived polling/observer are not started.
  * Assigns `globalThis.PowerAutomateUrlPolicy` for optional DevTools inspection (same implementation as
  * `./url-policy`; this bundle has its own module instance, configured from storage like the service worker).
  */
-import { parseEnforcedV3, STORAGE_KEY_ENFORCED_V3 } from "./constants";
-import { isEnforcedV3SyncChange } from "./storage-sync";
+import {
+  parseEnforcementPreference,
+  parseV3SurveyEnabled,
+  STORAGE_KEY_ENFORCED_V3,
+  STORAGE_KEY_V3SURVEY_ENABLED,
+  SYNC_POLICY_KEYS,
+} from "./constants";
+import { isEnforcerSyncChange } from "./storage-sync";
 import { PowerAutomateUrlPolicy } from "./url-policy";
 
 (
@@ -129,35 +137,48 @@ function startShortLivedFallback(): void {
 
 function startCanonicalizer(): void {
   enforceCanonicalUrlOnCurrentPage();
-  startShortLivedFallback();
+  if (!PowerAutomateUrlPolicy.isEnforcementPaused()) {
+    startShortLivedFallback();
+  }
 
   window.addEventListener("popstate", () => {
     enforceCanonicalUrlOnCurrentPage();
-    startShortLivedFallback();
+    if (!PowerAutomateUrlPolicy.isEnforcementPaused()) {
+      startShortLivedFallback();
+    }
   });
 
   patchHistoryApi();
 }
 
-void chrome.storage.sync.get(STORAGE_KEY_ENFORCED_V3).then((result) => {
+function applyPolicyFromSyncResult(result: {
+  [STORAGE_KEY_ENFORCED_V3]?: unknown;
+  [STORAGE_KEY_V3SURVEY_ENABLED]?: unknown;
+}): void {
   PowerAutomateUrlPolicy.configure({
-    enforcedV3: parseEnforcedV3(result[STORAGE_KEY_ENFORCED_V3]),
+    preference: parseEnforcementPreference(result[STORAGE_KEY_ENFORCED_V3]),
+    v3surveyEnabled: parseV3SurveyEnabled(result[STORAGE_KEY_V3SURVEY_ENABLED]),
   });
+}
+
+void chrome.storage.sync.get(SYNC_POLICY_KEYS).then((result) => {
+  applyPolicyFromSyncResult(result);
   startCanonicalizer();
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (
-    !isEnforcedV3SyncChange(areaName, changes as Record<string, unknown>, STORAGE_KEY_ENFORCED_V3)
-  ) {
+  if (!isEnforcerSyncChange(areaName, changes as Record<string, unknown>)) {
     return;
   }
-  const next = changes[STORAGE_KEY_ENFORCED_V3]?.newValue;
-  PowerAutomateUrlPolicy.configure({
-    enforcedV3: parseEnforcedV3(next),
+  void chrome.storage.sync.get(SYNC_POLICY_KEYS).then((result) => {
+    applyPolicyFromSyncResult(result);
+    lastEnforcedHref = "";
+    lastEnforcedCanonicalKey = "";
+    if (PowerAutomateUrlPolicy.isEnforcementPaused()) {
+      stopShortLivedFallback();
+    } else {
+      enforceCanonicalUrlOnCurrentPage();
+      startShortLivedFallback();
+    }
   });
-  lastEnforcedHref = "";
-  lastEnforcedCanonicalKey = "";
-  enforceCanonicalUrlOnCurrentPage();
-  startShortLivedFallback();
 });

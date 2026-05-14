@@ -1,6 +1,6 @@
-# Power Automate version enforcer
+# Power Automate: editor preference
 
-Chrome/Edge extension (Manifest V3) that **enforces the Power Automate designer query mode you choose**: keep URLs on `v3=false` (classic editor) or `v3=true` (new designer), including when Microsoft links omit or flip the flag. When `v3survey` is already present on a target URL, it is normalized to the **same** boolean as your selected mode.
+Chrome/Edge extension (Manifest V3) that **keeps flow and run links opening in the editor you choose** while the extension is active: classic (`v3=false`) or new designer (`v3=true`), even when Microsoft links omit or flip the flag. You can **pause** anytime (extension stays installed; no URL rewrites or DNR rules). Optional **`v3survey`** control lives in the popup section **Survey links (optional)**: default leaves it untouched; when enabled, adds `v3survey=true` when missing and collapses duplicate keys to a single `true` while enforcement is on.
 
 **Developer:** [Helvety](https://helvety.com)
 
@@ -19,15 +19,16 @@ Chrome/Edge extension (Manifest V3) that **enforces the Power Automate designer 
 - Runs on Microsoft Power Automate hosts:
   - `https://*.powerautomate.com/*`
   - `https://flow.microsoft.com/*`
-- Only changes URLs whose path contains `/flows/` or `/runs/`.
-- **Toolbar popup** (React + Tailwind + Radix): pick **Classic editor (`v3=false`)** or **New designer (`v3=true`)**. The choice is stored under `chrome.storage.sync` key `enforcedV3` and applied everywhere below. If the user has turned off Chrome sync, `chrome.storage.sync` still works; it behaves like local storage for that profile ([Chrome `storage` docs](https://developer.chrome.com/docs/extensions/reference/api/storage)).
-- Adds or replaces the `v3` query parameter so it always matches your selection.
-- If a target URL already includes `v3survey` (any casing), its value is normalized to the same enforced boolean; `v3survey` is **not** invented when absent.
+- Only changes URLs whose path contains `/flows/` or `/runs/` (and only while enforcement is **not** paused).
+- **Toolbar popup** (React + Tailwind + Radix): choose **Classic editor**, **New designer**, or **Paused**. Your choice is stored in `chrome.storage.sync` under `enforcedV3` as `"true"`, `"false"`, or `"off"` and applied in the service worker, content script, and DNR layer. If Chrome sync is off, `chrome.storage.sync` still works for that profile—it behaves like local storage ([Chrome `storage` docs](https://developer.chrome.com/docs/extensions/reference/api/storage)).
+- While enforcing, adds or replaces the `v3` query parameter so it matches your selected boolean mode.
+- Optional **survey flag** (**Survey links (optional)** in the popup): **Leave survey links alone (default)** never adds or rewrites `v3survey`. **Turn on survey flag** adds `v3survey=true` when missing and aligns existing values to `true`. Stored as `chrome.storage.sync` key `v3surveyEnabled` (`"true"` / `"false"`).
+- When **survey is off** (default), any `v3survey` value already in a URL is left as-is; only the main `v3` editor flag is adjusted. When **survey is on**, we also add `v3survey=true` when it is missing and normalize duplicate keys to a single `true` value.
 - Uses semantic URL dedupe to avoid rewrite loops on equivalent `/flows/new` URLs (for example `%20` vs `+` encoding differences).
 - **Layered enforcement** (aligned with Chromium MV3 best practices):
-  - **Layer 1:** `declarativeNetRequest` — two static rulesets (`dnr-classic-editor.json`, `dnr-new-designer.json`); exactly one is enabled at a time via `updateEnabledRulesets`. After each **extension update**, the service worker reconciles enabled rulesets with storage (Chromium does not persist which static rulesets were enabled across extension updates; the manifest defaults apply until the service worker runs again—see [Declarative Net Request](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest)).
-  - **Layer 2:** Background `webNavigation` (`onCommitted`, `onHistoryStateUpdated`) rewrites navigations the declarative layer might miss, using the same URL policy as the content script.
-  - **Layer 3:** Content script at `document_start` for SPA transitions (`history.pushState` / `replaceState`, `popstate`, short-lived polling + `MutationObserver`).
+  - **Layer 1:** `declarativeNetRequest` — two static rulesets (`dnr-classic-editor.json`, `dnr-new-designer.json`); when enforcing, **exactly one** is enabled via `updateEnabledRulesets`; when **paused**, **both** are disabled. After each **extension update**, the service worker reconciles enabled rulesets with storage (Chromium does not persist which static rulesets were enabled across extension updates; the manifest defaults apply until the service worker runs again—see [Declarative Net Request](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest)).
+  - **Layer 2:** Background `webNavigation` (`onCommitted`, `onHistoryStateUpdated`) rewrites navigations the declarative layer might miss when enforcement is active (same URL policy as the content script; no-op when paused).
+  - **Layer 3:** Content script at `document_start` for SPA transitions (`history.pushState` / `replaceState`, `popstate`, short-lived polling + `MutationObserver`) when enforcement is active (polling/observer are not started while paused).
 
 ## Build and load (development)
 
@@ -61,33 +62,34 @@ Source lives under `src/`. The loadable extension is produced in **`dist/`** aft
 
 ## Unit tests
 
-Tests run **locally** with [Vitest](https://vitest.dev/) (already a devDependency). They use the **Node** environment. Most suites exercise **pure helpers** (`dnr-rulesets`, `navigation-guards`, `storage-sync`, and `constants` helpers). `PowerAutomateUrlPolicy` keeps configurable state in the module; tests call `configure()` in `beforeEach` so each case starts from a known mode.
+Tests run **locally** with [Vitest](https://vitest.dev/) (already a devDependency). They use the **Node** environment. Most suites exercise **pure helpers** (`dnr-rulesets`, `navigation-guards`, `storage-sync`, and `constants` helpers). `PowerAutomateUrlPolicy` keeps configurable state in the module; tests call `configure({ preference, v3surveyEnabled })` in `beforeEach` so each case starts from a known mode. The popup reload helper is covered with a **stubbed `chrome.tabs`** API (no real browser).
 
-| Suite                                                                  | What it covers                                                                                                                                                                                              |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`tests/url-policy.test.ts`](./tests/url-policy.test.ts)               | URL targeting, canonicalization, `v3` / `v3survey` behavior for both enforced modes, edge cases (hash, duplicates).                                                                                         |
-| [`tests/constants.test.ts`](./tests/constants.test.ts)                 | `parseEnforcedV3`, `needsDefaultEnforcedV3Seed`, storage key / default mode, DNR ruleset id strings, and a **manifest drift guard** that reads `public/manifest.json` plus on-disk DNR JSON and icon paths. |
-| [`tests/dnr-rulesets.test.ts`](./tests/dnr-rulesets.test.ts)           | `buildUpdateRulesetOptions` — which static ruleset is enabled per mode.                                                                                                                                     |
-| [`tests/navigation-guards.test.ts`](./tests/navigation-guards.test.ts) | `isMainFrameTabNavigation` — main-frame vs subframe filtering.                                                                                                                                              |
-| [`tests/storage-sync.test.ts`](./tests/storage-sync.test.ts)           | `isEnforcedV3SyncChange` — background/content agree on when to react to storage events.                                                                                                                     |
+| Suite                                                                                  | What it covers                                                                                                                                                                                             |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`tests/url-policy.test.ts`](./tests/url-policy.test.ts)                               | URL targeting, canonicalization, `v3` / `v3survey` behavior for enforced and **paused** modes, edge cases (hash, duplicates).                                                                              |
+| [`tests/constants.test.ts`](./tests/constants.test.ts)                                 | `parseEnforcementPreference`, `needsDefaultEnforcedV3Seed`, storage key / default mode, DNR ruleset id strings, and a **manifest drift guard** (MV3 permissions, hosts, `manifest.json`, DNR JSON, icons). |
+| [`tests/dnr-rulesets.test.ts`](./tests/dnr-rulesets.test.ts)                           | `buildUpdateRulesetOptions` — which static ruleset is enabled per **preference** (`true` / `false` / `off`).                                                                                               |
+| [`tests/navigation-guards.test.ts`](./tests/navigation-guards.test.ts)                 | `isMainFrameTabNavigation` — main-frame vs subframe filtering.                                                                                                                                             |
+| [`tests/storage-sync.test.ts`](./tests/storage-sync.test.ts)                           | `isEnforcerSyncChange` — background/content reload policy when `enforcedV3` or `v3surveyEnabled` changes in sync.                                                                                          |
+| [`tests/reload-focused-target-tab.test.ts`](./tests/reload-focused-target-tab.test.ts) | Stubbed `chrome.tabs.query` / `reload` — last-focused window query, skip when paused or URL not a flow/run target; also used after survey saves when an editor mode is active.                             |
 
-**Service worker and content** still call Chromium extension APIs at runtime; unit tests target the **pure helpers** and **URL policy** only, so we do not need browser automation or mocked `chrome.*` for those suites. This repository does not define GitHub Actions—run `npm run test` locally before releases or after refactors.
+**Service worker and content** still call Chromium extension APIs at runtime; unit tests target **pure helpers**, **URL policy**, and **small chrome-stubbed flows** so we do not need Playwright or a headed browser for CI.
 
 ## Repository layout
 
 | Path                                                                                                                                    | Purpose                                                                                                                                                                                                                                                          |
 | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`public/manifest.json`](./public/manifest.json)                                                                                        | MV3 manifest copied into `dist/` on build.                                                                                                                                                                                                                       |
-| [`public/dnr-classic-editor.json`](./public/dnr-classic-editor.json) / [`public/dnr-new-designer.json`](./public/dnr-new-designer.json) | Declarative Net Request static rulesets (only one enabled at runtime). Classic ruleset enforces `v3=false`; new-designer ruleset enforces `v3=true`.                                                                                                             |
+| [`public/dnr-classic-editor.json`](./public/dnr-classic-editor.json) / [`public/dnr-new-designer.json`](./public/dnr-new-designer.json) | Declarative Net Request static rulesets: when enforcing, **one** is enabled (classic → `v3=false`, new-designer → `v3=true`); when **paused**, **neither** is enabled.                                                                                           |
 | [`public/icons/`](./public/icons/)                                                                                                      | PNG icons referenced by the manifest (kept outside Vite’s `popup-assets` output so the popup build does not overwrite them). The repo’s [`assets/`](./assets/) folder may contain extra artwork for store listings; it is **not** copied into `dist` by default. |
-| [`src/constants.ts`](./src/constants.ts)                                                                                                | Storage key, ruleset ids, `parseEnforcedV3`, `needsDefaultEnforcedV3Seed`, defaults.                                                                                                                                                                             |
-| [`src/url-policy.ts`](./src/url-policy.ts)                                                                                              | Shared URL targeting and canonicalization (`PowerAutomateUrlPolicy.configure`, `canonicalizeToEnforced`, …).                                                                                                                                                     |
-| [`src/dnr-rulesets.ts`](./src/dnr-rulesets.ts)                                                                                          | Pure mapping from enforced mode → DNR `updateEnabledRulesets` options.                                                                                                                                                                                           |
+| [`src/constants.ts`](./src/constants.ts)                                                                                                | Storage keys (`SYNC_POLICY_KEYS`), ruleset ids, parsers (`parseEnforcementPreference`, `parseV3SurveyEnabled`), install seeds, defaults.                                                                                                                         |
+| [`src/url-policy.ts`](./src/url-policy.ts)                                                                                              | Shared URL targeting and canonicalization (`PowerAutomateUrlPolicy.configure`, `canonicalizeToEnforced`, paused mode, optional `v3survey=true`, …).                                                                                                              |
+| [`src/dnr-rulesets.ts`](./src/dnr-rulesets.ts)                                                                                          | Pure mapping from enforcement **preference** → DNR `updateEnabledRulesets` options.                                                                                                                                                                              |
 | [`src/navigation-guards.ts`](./src/navigation-guards.ts)                                                                                | Pure main-frame navigation check used by the service worker.                                                                                                                                                                                                     |
-| [`src/storage-sync.ts`](./src/storage-sync.ts)                                                                                          | Pure helper for `chrome.storage.onChanged` filtering (sync + `enforcedV3` key).                                                                                                                                                                                  |
-| [`src/background.ts`](./src/background.ts)                                                                                              | Service worker: DNR ruleset toggling, storage listeners, `webNavigation` enforcement.                                                                                                                                                                            |
-| [`src/content.ts`](./src/content.ts)                                                                                                    | In-page SPA URL enforcement; assigns `globalThis.PowerAutomateUrlPolicy` for optional DevTools inspection (not required for enforcement; separate module instance from the service worker, same policy logic).                                                   |
-| [`src/popup/`](./src/popup/)                                                                                                            | React popup UI.                                                                                                                                                                                                                                                  |
+| [`src/storage-sync.ts`](./src/storage-sync.ts)                                                                                          | `isEnforcerSyncChange` — true when sync `enforcedV3` or `v3surveyEnabled` appears in `chrome.storage.onChanged`.                                                                                                                                                 |
+| [`src/background.ts`](./src/background.ts)                                                                                              | Service worker: DNR ruleset toggling, storage listeners, `webNavigation` enforcement (skipped when paused).                                                                                                                                                      |
+| [`src/content.ts`](./src/content.ts)                                                                                                    | In-page SPA URL enforcement when not paused; assigns `globalThis.PowerAutomateUrlPolicy` for optional DevTools inspection (separate module instance from the service worker, same policy logic).                                                                 |
+| [`src/popup/`](./src/popup/)                                                                                                            | React popup: plain-language choices (classic vs new designer, pause, optional survey links), optimistic saves, optional reload of the last-focused flow/run tab after saving an editor mode (not after pausing).                                                 |
 | [`vite.popup.config.ts`](./vite.popup.config.ts)                                                                                        | Vite config for the popup bundle (`base: './'`, `popup-assets/` for hashed JS/CSS).                                                                                                                                                                              |
 | [`scripts/prebuild-copy-public.mjs`](./scripts/prebuild-copy-public.mjs)                                                                | Clears `dist/` and copies `public/` before bundling.                                                                                                                                                                                                             |
 | [`scripts/verify-project-naming.mjs`](./scripts/verify-project-naming.mjs)                                                              | Pre-release guard: errors if superseded repo slugs, old npm package name, or old store display title reappear in scanned files (see the `forbidden` list in the script).                                                                                         |
@@ -96,7 +98,7 @@ Tests run **locally** with [Vitest](https://vitest.dev/) (already a devDependenc
 ## Browser compatibility
 
 - Manifest V3 extension intended for Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera, etc.).
-- Requires: `declarativeNetRequest` (query transforms), `webNavigation`, `storage`, History API, and `MutationObserver` in content scripts.
+- Requires: `declarativeNetRequest` (query transforms), `webNavigation`, `storage`, `host_permissions` for Power Automate hosts (popup tab reload uses `chrome.tabs` on those URLs), History API, and `MutationObserver` in content scripts.
 
 ## Store listing vs manifest
 
@@ -119,29 +121,34 @@ What **does not** live in the manifest (you set these in each store’s develope
 ## Implementation notes
 
 - **Service worker listeners** (`webNavigation`, `tabs.onRemoved`, `storage.onChanged`, `runtime.onInstalled`) are registered at the **top level** of `background.ts`, per Google’s MV3 guidance (avoid registering listeners only inside async callbacks).
-- **`reconcileFromStorage()`** runs once at service worker startup (top-level `void reconcileFromStorage()` in `background.ts`) and again after `chrome.storage.onChanged` (when `enforcedV3` changes) and after `chrome.runtime.onInstalled` (both **install** and **update** paths end by awaiting it). Together with manifest defaults, that restores the correct DNR ruleset after an extension update even when the browser resets static ruleset enablement.
+- **`reconcileFromStorage()`** runs once at service worker startup (top-level `void reconcileFromStorage()` in `background.ts`) and again after `chrome.storage.onChanged` (when `enforcedV3` or `v3surveyEnabled` changes in sync) and after `chrome.runtime.onInstalled` (both **install** and **update** paths end by awaiting it). Together with manifest defaults, that restores the correct DNR ruleset state after an extension update even when the browser resets static ruleset enablement.
 - **Executable code** is fully bundled in the package (no remotely hosted extension logic), consistent with MV3 security expectations.
 - JSON does not allow `//` comments in `manifest.json`; details live in this README.
 
 ## Known limitations
 
-- URL enforcement applies only when pathname contains `/flows/` or `/runs/`.
-- `v3survey` is normalized only when it already exists in the URL.
+- URL enforcement applies only when pathname contains `/flows/` or `/runs/`, and not while the extension is **paused**.
+- **Survey links:** default leaves URLs alone. Optional **on** adds `v3survey=true` when missing; see the popup section **Survey links (optional)**.
 - If Power Automate changes hostnames or route structures, matching rules may need updates.
 
 ## Lightweight regression checks
 
 ```bash
+npm run format:check
+npm run lint
 npm run test
 npm run typecheck
 npm run build
 ```
 
+For a release-style gate (naming scan + the above), use **`npm run predeploy`**.
+
 ## Validation checklist
 
 After `npm run build`, load **`dist`** unpacked and verify:
 
-- **Mode `v3=false`:** direct open with `v3=true` → becomes `v3=false`; without `v3` → gains `v3=false`; `v3survey` present and not false → becomes `false`.
-- **Mode `v3=true`:** same scenarios with inverted expectations for `v3` / `v3survey`.
-- Popup: switching mode updates open Power Automate tabs after navigation or SPA URL changes (content script listens to `chrome.storage.onChanged`).
-- After packaging an update, confirm the enabled DNR ruleset still matches the saved mode (service worker startup and `chrome.runtime.onInstalled` both call `reconcileFromStorage()`).
+- **Classic editor:** links that would open the new designer should open classic instead; links with no editor hint should gain classic. With **survey links off**, any survey-related part of the URL stays as you pasted it; with **survey links on**, expect the survey flag to be turned on when missing.
+- **New designer:** the same idea with roles flipped—links should land in the new designer, and survey behavior matches the bullets above.
+- **Paused:** no link changes; both DNR rulesets off; the in-page watcher is idle.
+- **Popup:** switching Classic / New designer saves right away and may refresh the flow or run tab you had focused. Changing **Survey links** does the same when an editor mode is active (not while Paused). Background and content still react when `enforcedV3` or `v3surveyEnabled` changes in sync storage.
+- After packaging an update, confirm DNR ruleset enablement still matches the saved preference (service worker startup and `chrome.runtime.onInstalled` both call `reconcileFromStorage()`).
