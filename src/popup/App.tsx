@@ -4,6 +4,7 @@ import {
   ExternalLink,
   GitBranch,
   Globe,
+  Loader2,
   MessageSquare,
   Moon,
   Package,
@@ -66,6 +67,7 @@ export default function App() {
   );
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState<string>("");
+  const [isPolicySyncBusy, setIsPolicySyncBusy] = useState(false);
   const [extensionVersion, setExtensionVersion] = useState<string>("");
   const statusClearTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
@@ -125,15 +127,23 @@ export default function App() {
     applyThemeClassToDocument(resolveIsDark(themePreference));
   }, [themePreference]);
 
-  const scheduleStatusClear = useCallback(() => {
+  const clearPendingStatusDismiss = useCallback(() => {
     if (statusClearTimerRef.current !== null) {
       window.clearTimeout(statusClearTimerRef.current);
-    }
-    statusClearTimerRef.current = window.setTimeout(() => {
       statusClearTimerRef.current = null;
-      setStatus("");
-    }, 2000);
+    }
   }, []);
+
+  const scheduleStatusClear = useCallback(
+    (clearAfterMs: number = 2000) => {
+      clearPendingStatusDismiss();
+      statusClearTimerRef.current = window.setTimeout(() => {
+        statusClearTimerRef.current = null;
+        setStatus("");
+      }, clearAfterMs);
+    },
+    [clearPendingStatusDismiss],
+  );
 
   const resyncFromStorage = useCallback(async () => {
     const result = await chrome.storage.sync.get([...SYNC_POLICY_KEYS]);
@@ -153,19 +163,32 @@ export default function App() {
   const onSave = useCallback(
     (next: EnforcementPreference) => {
       setValue(next);
-      setStatus("Saving…");
       void (async () => {
+        clearPendingStatusDismiss();
+        setIsPolicySyncBusy(true);
+        setStatus("Saving preference…");
+        let statusAutoDismissMs = 2000;
         try {
           await chrome.storage.sync.set({ [STORAGE_KEY_ENFORCED_V3]: next });
           if (!mountedRef.current) {
             return;
           }
+          if (next !== "off") {
+            setStatus("Refreshing open Power Automate tab…");
+          }
+          const tabReloaded = await reloadFocusedTargetTabIfApplicable(next);
+          if (!mountedRef.current) {
+            return;
+          }
           setStatus("Saved.");
-          await reloadFocusedTargetTabIfApplicable(next);
+          if (tabReloaded) {
+            statusAutoDismissMs = 3800;
+          }
         } catch (error: unknown) {
           if (!mountedRef.current) {
             return;
           }
+          statusAutoDismissMs = 2000;
           try {
             await resyncFromStorage();
           } catch {
@@ -180,31 +203,49 @@ export default function App() {
           if (mountedRef.current) {
             setStatus(message);
           }
-        }
-        if (mountedRef.current) {
-          scheduleStatusClear();
+        } finally {
+          if (mountedRef.current) {
+            setIsPolicySyncBusy(false);
+            scheduleStatusClear(statusAutoDismissMs);
+          } else {
+            setIsPolicySyncBusy(false);
+          }
         }
       })();
     },
-    [resyncFromStorage, scheduleStatusClear],
+    [clearPendingStatusDismiss, resyncFromStorage, scheduleStatusClear],
   );
 
   const onSaveSurvey = useCallback(
     (next: SurveyEnabledSync) => {
       setSurveyMode(next);
-      setStatus("Saving…");
       void (async () => {
+        clearPendingStatusDismiss();
+        setIsPolicySyncBusy(true);
+        setStatus("Saving preference…");
+        let statusAutoDismissMs = 2000;
         try {
           await chrome.storage.sync.set({ [STORAGE_KEY_V3SURVEY_ENABLED]: next });
           if (!mountedRef.current) {
             return;
           }
+          const editorMode = enforcementRef.current;
+          if (editorMode !== "off") {
+            setStatus("Refreshing open Power Automate tab…");
+          }
+          const tabReloaded = await reloadFocusedTargetTabIfApplicable(editorMode);
+          if (!mountedRef.current) {
+            return;
+          }
           setStatus("Saved.");
-          await reloadFocusedTargetTabIfApplicable(enforcementRef.current);
+          if (tabReloaded) {
+            statusAutoDismissMs = 3800;
+          }
         } catch (error: unknown) {
           if (!mountedRef.current) {
             return;
           }
+          statusAutoDismissMs = 2000;
           try {
             await resyncFromStorage();
           } catch {
@@ -219,22 +260,24 @@ export default function App() {
           if (mountedRef.current) {
             setStatus(message);
           }
-        }
-        if (mountedRef.current) {
-          scheduleStatusClear();
+        } finally {
+          if (mountedRef.current) {
+            setIsPolicySyncBusy(false);
+            scheduleStatusClear(statusAutoDismissMs);
+          } else {
+            setIsPolicySyncBusy(false);
+          }
         }
       })();
     },
-    [resyncFromStorage, scheduleStatusClear],
+    [clearPendingStatusDismiss, resyncFromStorage, scheduleStatusClear],
   );
 
   useEffect(() => {
     return () => {
-      if (statusClearTimerRef.current !== null) {
-        window.clearTimeout(statusClearTimerRef.current);
-      }
+      clearPendingStatusDismiss();
     };
-  }, []);
+  }, [clearPendingStatusDismiss]);
 
   if (!loaded) {
     return (
@@ -278,6 +321,7 @@ export default function App() {
         <TabsList className="grid h-auto w-full grid-cols-3 gap-0.5 bg-muted p-1 text-xs">
           <TabsTrigger
             value="editor"
+            disabled={isPolicySyncBusy}
             className="flex flex-col gap-0.5 px-2 py-2 text-xs shadow-none"
           >
             <PenLine className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -285,6 +329,7 @@ export default function App() {
           </TabsTrigger>
           <TabsTrigger
             value="survey"
+            disabled={isPolicySyncBusy}
             className="flex flex-col gap-0.5 px-2 py-2 text-xs shadow-none"
           >
             <MessageSquare className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -292,12 +337,29 @@ export default function App() {
           </TabsTrigger>
           <TabsTrigger
             value="about"
+            disabled={isPolicySyncBusy}
             className="flex flex-col gap-0.5 px-2 py-2 text-xs shadow-none"
           >
             <BadgeInfo className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>About</span>
           </TabsTrigger>
         </TabsList>
+
+        {status || isPolicySyncBusy ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-2 flex min-h-[1.25rem] items-center gap-2 text-xs text-muted-foreground"
+          >
+            {isPolicySyncBusy ? (
+              <Loader2
+                className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground"
+                aria-hidden
+              />
+            ) : null}
+            {status ? <span className="min-w-0 leading-snug">{status}</span> : null}
+          </div>
+        ) : null}
 
         <TabsContent value="editor" className="mt-2 outline-none">
           <div className={TAB_PANEL_CLASS}>
@@ -313,6 +375,7 @@ export default function App() {
               <RadioGroup
                 className="flex flex-col gap-1.5"
                 aria-label="Editor for flow and run links"
+                disabled={isPolicySyncBusy}
                 value={value}
                 onValueChange={(v) => {
                   if (v === "true" || v === "false" || v === "off") {
@@ -401,6 +464,7 @@ export default function App() {
                 <RadioGroup
                   className="flex flex-col gap-1.5"
                   aria-label="Survey visibility (v3survey)"
+                  disabled={isPolicySyncBusy}
                   value={surveyMode}
                   onValueChange={(v) => {
                     if (v === "true" || v === "false") {
@@ -614,8 +678,6 @@ export default function App() {
           </div>
         </TabsContent>
       </Tabs>
-
-      {status ? <p className="text-xs text-muted-foreground">{status}</p> : null}
     </div>
   );
 }

@@ -40,13 +40,3 @@ export function resolveIsDark(preference: ThemePreference): boolean {
 export function applyThemeClassToDocument(isDark: boolean): void {
   document.documentElement.classList.toggle("dark", isDark);
 }
-
-export function subscribePrefersColorScheme(listener: () => void): () => void {
-  try {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    mq.addEventListener("change", listener);
-    return () => mq.removeEventListener("change", listener);
-  } catch {
-    return () => {};
-  }
-}

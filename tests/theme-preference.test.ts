@@ -5,7 +5,6 @@ import {
   parseThemePreference,
   prefersDarkFromSystem,
   resolveIsDark,
-  subscribePrefersColorScheme,
 } from "../src/popup/theme-preference";
 
 function stubWindowWithMatchMedia(matches: boolean) {
@@ -112,40 +111,5 @@ describe("applyThemeClassToDocument", () => {
     expect(toggle).toHaveBeenCalledWith("dark", true);
     applyThemeClassToDocument(false);
     expect(toggle).toHaveBeenCalledWith("dark", false);
-  });
-});
-
-describe("subscribePrefersColorScheme", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("subscribes to change and unsubscribes", () => {
-    const listener = vi.fn();
-    const addEventListener = vi.fn();
-    const removeEventListener = vi.fn();
-    vi.stubGlobal("window", {
-      matchMedia: () => ({
-        matches: false,
-        media: "(prefers-color-scheme: dark)",
-        addEventListener,
-        removeEventListener,
-      }),
-    } as unknown as Window);
-
-    const unsub = subscribePrefersColorScheme(listener);
-    expect(addEventListener).toHaveBeenCalledWith("change", listener);
-    unsub();
-    expect(removeEventListener).toHaveBeenCalledWith("change", listener);
-  });
-
-  it("returns no-op unsub when matchMedia throws", () => {
-    vi.stubGlobal("window", {
-      matchMedia: () => {
-        throw new Error("blocked");
-      },
-    } as unknown as Window);
-    const unsub = subscribePrefersColorScheme(vi.fn());
-    expect(() => unsub()).not.toThrow();
   });
 });

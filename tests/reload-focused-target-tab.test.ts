@@ -23,7 +23,7 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
   it("does not query tabs when preference is off", async () => {
     const chromeMock = chromeTabsStub([], vi.fn());
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await reloadFocusedTargetTabIfApplicable("off");
+    await expect(reloadFocusedTargetTabIfApplicable("off")).resolves.toBe(false);
     expect(chromeMock.tabs.query).not.toHaveBeenCalled();
   });
 
@@ -33,7 +33,7 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
       const reload = vi.fn().mockResolvedValue(undefined);
       const chromeMock = chromeTabsStub([{ id: 7, url: FLOW_TAB_URL }], reload);
       vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-      await reloadFocusedTargetTabIfApplicable(preference);
+      await expect(reloadFocusedTargetTabIfApplicable(preference)).resolves.toBe(true);
       expect(chromeMock.tabs.query).toHaveBeenCalledTimes(1);
       expect(chromeMock.tabs.query).toHaveBeenCalledWith({
         active: true,
@@ -47,7 +47,7 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     const reload = vi.fn();
     const chromeMock = chromeTabsStub([], reload);
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await reloadFocusedTargetTabIfApplicable("false");
+    await expect(reloadFocusedTargetTabIfApplicable("false")).resolves.toBe(false);
     expect(reload).not.toHaveBeenCalled();
   });
 
@@ -55,7 +55,7 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     const reload = vi.fn();
     const chromeMock = chromeTabsStub([{ url: FLOW_TAB_URL }], reload);
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await reloadFocusedTargetTabIfApplicable("false");
+    await expect(reloadFocusedTargetTabIfApplicable("false")).resolves.toBe(false);
     expect(reload).not.toHaveBeenCalled();
   });
 
@@ -63,7 +63,7 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     const reload = vi.fn();
     const chromeMock = chromeTabsStub([{ id: 1 }], reload);
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await reloadFocusedTargetTabIfApplicable("false");
+    await expect(reloadFocusedTargetTabIfApplicable("false")).resolves.toBe(false);
     expect(reload).not.toHaveBeenCalled();
   });
 
@@ -74,7 +74,7 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
       reload,
     );
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await reloadFocusedTargetTabIfApplicable("false");
+    await expect(reloadFocusedTargetTabIfApplicable("false")).resolves.toBe(false);
     expect(reload).not.toHaveBeenCalled();
   });
 
@@ -83,14 +83,14 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     const runUrl = "https://emea.powerautomate.com/environments/foo/runs/run-1?v3=false";
     const chromeMock = chromeTabsStub([{ id: 9, url: runUrl }], reload);
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await reloadFocusedTargetTabIfApplicable("false");
+    await expect(reloadFocusedTargetTabIfApplicable("false")).resolves.toBe(true);
     expect(reload).toHaveBeenCalledWith(9);
   });
 
-  it("resolves when reload rejects (e.g. tab closed)", async () => {
+  it("resolves false when reload rejects (e.g. tab closed)", async () => {
     const reload = vi.fn().mockRejectedValue(new Error("no tab"));
     const chromeMock = chromeTabsStub([{ id: 3, url: FLOW_TAB_URL }], reload);
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
-    await expect(reloadFocusedTargetTabIfApplicable("true")).resolves.toBeUndefined();
+    await expect(reloadFocusedTargetTabIfApplicable("true")).resolves.toBe(false);
   });
 });
