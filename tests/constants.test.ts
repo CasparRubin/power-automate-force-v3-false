@@ -16,11 +16,13 @@ import {
   STORAGE_KEY_V3SURVEY_ENABLED,
   SYNC_POLICY_KEYS,
 } from "../src/constants";
+import { EXTENSION_DISPLAY_NAME } from "../src/popup/about-meta";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 type PublicManifest = {
   manifest_version?: number;
+  name?: string;
   permissions?: string[];
   host_permissions?: string[];
   background?: { service_worker?: string; type?: string };
@@ -130,6 +132,11 @@ describe("storage and default mode constants", () => {
 });
 
 describe("public/manifest.json (drift guard vs src/constants.ts)", () => {
+  it("name matches popup EXTENSION_DISPLAY_NAME (store / browser UI alignment)", () => {
+    const manifest = readPublicManifest();
+    expect(manifest.name).toBe(EXTENSION_DISPLAY_NAME);
+  });
+
   it("is MV3 with expected API permissions (host access via host_permissions, not broad tabs)", () => {
     const manifest = readPublicManifest();
     expect(manifest.manifest_version).toBe(3);

@@ -28,7 +28,12 @@ import {
   SYNC_POLICY_KEYS,
   type EnforcementPreference,
 } from "../constants";
-import { DEVELOPER_NAME, DEVELOPER_URL, SOURCE_REPO_URL } from "./about-meta";
+import {
+  DEVELOPER_NAME,
+  DEVELOPER_URL,
+  EXTENSION_DISPLAY_NAME,
+  SOURCE_REPO_URL,
+} from "./about-meta";
 import { HelvetyMark } from "./components/HelvetyMark";
 import { reloadFocusedTargetTabIfApplicable } from "./reload-focused-target-tab";
 import {
@@ -241,7 +246,7 @@ export default function App() {
               {DEVELOPER_NAME}
             </span>
             <span className="text-[11px] leading-tight text-muted-foreground">
-              Power Automate Version Enforcer
+              {EXTENSION_DISPLAY_NAME}
             </span>
           </div>
         </header>
@@ -266,7 +271,7 @@ export default function App() {
               {DEVELOPER_NAME}
             </span>
             <span className="text-[11px] leading-tight text-muted-foreground">
-              Power Automate Version Enforcer
+              {EXTENSION_DISPLAY_NAME}
             </span>
           </div>
         </header>
@@ -450,7 +455,7 @@ export default function App() {
             <div className="pr-2">
               <Card className="bg-transparent">
                 <CardHeader className="flex flex-col gap-1 p-3 pb-2">
-                  <CardTitle className="text-sm">Power Automate: editor preference</CardTitle>
+                  <CardTitle className="text-sm">{EXTENSION_DISPLAY_NAME}</CardTitle>
                   <CardDescription className="text-xs leading-relaxed">
                     Keeps Microsoft Power Automate flow and run links opening in the editor you
                     choose (classic or new designer), or lets you pause rewrites while the extension

@@ -7,7 +7,7 @@ import { PowerAutomateUrlPolicy } from "../url-policy";
  * Uses {@link PowerAutomateUrlPolicy.isTargetUrl} only (host/path); the popup does not call
  * `PowerAutomateUrlPolicy.configure`, so this does not depend on in-popup policy state.
  * Used after both **editor mode** and **v3survey** sync writes (Survey tab saves pass the current
- * editor preference so reload is skipped while Paused).
+ * editor mode so reload is skipped while Paused).
  *
  * Uses `lastFocusedWindow: true` so the query targets the window that had focus before the action
  * popup opened (Chrome extension popup / tabs behavior).

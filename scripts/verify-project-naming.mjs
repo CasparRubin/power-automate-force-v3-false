@@ -1,7 +1,7 @@
 /**
  * Fail the build if superseded project strings appear anywhere under the repo
- * (excluding node_modules, dist, .git). Patterns cover old repo slugs, a former
- * npm package name, and a former store display title — see the `forbidden` list.
+ * (excluding node_modules, dist, .git). Patterns cover legacy GitHub repo slugs, a former
+ * npm package name, and a retired public display title — see the `forbidden` list.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";

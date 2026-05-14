@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Power Automate: editor preference",
+  "name": "Power Automate Editor Version Enforcer",
   "version": "2.1.0",
-  "description": "Classic or new designer for flow/run links (DNR sets v3 only). Survey: Hide (default, adds v3survey=false) or Show (normalize if present). Pause without uninstalling.",
+  "description": "Classic or new designer for Power Automate flow & run links. Survey Hide/Show for v3survey. Pause without uninstall.",
   "homepage_url": "https://helvety.com",
   "permissions": ["declarativeNetRequest", "webNavigation", "storage"],
   "host_permissions": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
@@ -12,7 +12,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Power Automate: editor preference"
+    "default_title": "Power Automate Editor Version Enforcer"
   },
   "declarative_net_request": {
     "rule_resources": [

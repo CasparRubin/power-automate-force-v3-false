@@ -2,6 +2,10 @@
   "name": "power-automate-version-enforcer",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CasparRubin/power-automate-editor-version-enforcer.git"
+  },
   "scripts": {
     "prebuild": "node scripts/prebuild-copy-public.mjs",
     "build:sw": "esbuild src/background.ts --bundle --outfile=dist/background.js --format=esm --platform=browser --target=es2022",
