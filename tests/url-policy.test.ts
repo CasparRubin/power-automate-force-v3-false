@@ -234,6 +234,14 @@ describe("PowerAutomateUrlPolicy (show survey, enforced v3=true)", () => {
     expect(new URL(nextUrl!).searchParams.get("v3survey")).toBe("true");
   });
 
+  it("is compliant in show mode when v3survey is consistently true", () => {
+    expect(
+      PowerAutomateUrlPolicy.canonicalizeToEnforced(
+        "https://flow.microsoft.com/en-us/flows/id?v3=true&v3survey=true",
+      ),
+    ).toBeNull();
+  });
+
   it("fixes wrong v3 without adding v3survey when survey key was absent (show)", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://flow.microsoft.com/en-us/flows/id?v3=false",
@@ -243,11 +251,38 @@ describe("PowerAutomateUrlPolicy (show survey, enforced v3=true)", () => {
     expect(parsed.searchParams.get("v3")).toBe("true");
     expect(parsed.searchParams.has("v3survey")).toBe(false);
   });
+
+  it("uses missing v3survey token in canonical key when survey param absent (show)", () => {
+    const key = PowerAutomateUrlPolicy.getCanonicalKey(
+      "https://flow.microsoft.com/en-us/flows/x?v3=true",
+    );
+    expect(key).toContain("|v3survey=__missing__");
+  });
 });
 
 describe("PowerAutomateUrlPolicy edges (v3=false, hide survey)", () => {
   beforeEach(() => {
     PowerAutomateUrlPolicy.configure({ preference: "false", v3surveyEnabled: false });
+  });
+
+  it("returns null from getCanonicalKey for invalid URLs and non-target pages", () => {
+    expect(PowerAutomateUrlPolicy.getCanonicalKey("not-a-url")).toBeNull();
+    expect(PowerAutomateUrlPolicy.getCanonicalKey("https://example.com/flows/foo")).toBeNull();
+    expect(
+      PowerAutomateUrlPolicy.getCanonicalKey(
+        "https://emea.powerautomate.com/environments/foo/home",
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null from canonicalizeToEnforced for invalid URLs", () => {
+    expect(PowerAutomateUrlPolicy.canonicalizeToEnforced("not-a-url")).toBeNull();
+    expect(PowerAutomateUrlPolicy.canonicalizeToEnforced("https://example.com/flows/x")).toBeNull();
+    expect(
+      PowerAutomateUrlPolicy.canonicalizeToEnforced(
+        "https://emea.powerautomate.com/environments/foo/home",
+      ),
+    ).toBeNull();
   });
 
   it("treats /runs/ paths as in scope", () => {
@@ -274,5 +309,31 @@ describe("PowerAutomateUrlPolicy edges (v3=false, hide survey)", () => {
     const parsed = new URL(next!);
     expect(parsed.searchParams.get("v3")).toBe("false");
     expect(parsed.searchParams.get("v3survey")).toBe("false");
+  });
+
+  it("treats non-boolean v3survey values as non-compliant in hide mode", () => {
+    expect(
+      PowerAutomateUrlPolicy.canonicalizeToEnforced(
+        "https://flow.microsoft.com/en-us/flows/x?v3=false&v3survey=maybe",
+      ),
+    ).toBeTruthy();
+    expect(
+      PowerAutomateUrlPolicy.getCanonicalKey(
+        "https://flow.microsoft.com/en-us/flows/x?v3=false&v3survey=maybe",
+      ),
+    ).toContain("|v3survey=other");
+  });
+
+  it("uses canonical v3 token other when v3 params disagree", () => {
+    const key = PowerAutomateUrlPolicy.getCanonicalKey(
+      "https://flow.microsoft.com/en-us/flows/x?v3=false&v3=true",
+    );
+    expect(key).toContain("|v3=other");
+  });
+
+  it("uses missing canonical tokens when v3 or v3survey are absent", () => {
+    const key = PowerAutomateUrlPolicy.getCanonicalKey("https://flow.microsoft.com/en-us/flows/x");
+    expect(key).toContain("|v3=__missing__");
+    expect(key).toContain("|v3survey=__missing__");
   });
 });

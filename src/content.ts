@@ -5,6 +5,8 @@
  * default sync `"false"`, sets `v3survey=false` and adds it if missing; **Show:** sync `"true"`,
  * normalizes existing `v3survey` keys to `true` only and does not add the param when absent).
  * When paused (`off`), canonicalization is a no-op and short-lived polling/observer are not started.
+ * While the fallback `MutationObserver` is active, its callbacks are coalesced with `requestAnimationFrame`
+ * so rapid DOM mutations do not each synchronously re-run URL logic.
  * Assigns `globalThis.PowerAutomateUrlPolicy` for optional DevTools inspection (same implementation as
  * `./url-policy`; this bundle has its own module instance, configured from storage like the service worker).
  */
@@ -26,8 +28,20 @@ let isHistoryPatched = false;
 let fallbackTimerId: number | null = null;
 let fallbackStopTimerId: number | null = null;
 let fallbackObserver: MutationObserver | null = null;
+/** Coalesces MutationObserver callbacks to one canonicalization per animation frame (main-thread). */
+let observerCanonicalRafId: number | null = null;
 let lastEnforcedHref = "";
 let lastEnforcedCanonicalKey = "";
+
+function scheduleCanonicalFromMutationObserver(): void {
+  if (observerCanonicalRafId !== null) {
+    return;
+  }
+  observerCanonicalRafId = window.requestAnimationFrame(() => {
+    observerCanonicalRafId = null;
+    enforceCanonicalUrlOnCurrentPage();
+  });
+}
 
 function enforceCanonicalUrlOnCurrentPage(): boolean {
   const currentHref = window.location.href;
@@ -98,6 +112,10 @@ function stopShortLivedFallback(): void {
     fallbackObserver.disconnect();
     fallbackObserver = null;
   }
+  if (observerCanonicalRafId !== null) {
+    window.cancelAnimationFrame(observerCanonicalRafId);
+    observerCanonicalRafId = null;
+  }
 }
 
 function startShortLivedFallback(): void {
@@ -113,7 +131,7 @@ function startShortLivedFallback(): void {
 
   try {
     fallbackObserver = new MutationObserver(() => {
-      enforceCanonicalUrlOnCurrentPage();
+      scheduleCanonicalFromMutationObserver();
     });
 
     if (document.documentElement) {

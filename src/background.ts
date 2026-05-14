@@ -1,9 +1,13 @@
 /**
  * MV3 service worker: toggles DNR rulesets from sync `enforcedV3`, configures `PowerAutomateUrlPolicy`
- * from `enforcedV3` + `v3surveyEnabled`, and rewrites main-frame flow/run URLs via `webNavigation` and
- * `tabs.update` when enforcement is not paused. Static DNR JSON only adjusts `v3`; `v3survey` (**Hide**
- * / **Show**) uses the same URL policy as the content script.
+ * from `enforcedV3` + `v3surveyEnabled`, updates the toolbar badge, and rewrites main-frame flow/run URLs
+ * via `webNavigation` and `tabs.update` when enforcement is not paused. Static DNR JSON only adjusts `v3`;
+ * `v3survey` (**Hide** / **Show**) uses the same URL policy as the content script.
+ *
+ * Navigations await {@link createPolicyLoadQueue} so URL logic never runs before the first storage-backed
+ * `reconcileFromStorage` completes (Chrome MV3 storage preload pattern).
  */
+import { applyToolbarBadgeForEnforcement } from "./action-badge";
 import {
   DEFAULT_ENFORCED_V3,
   needsDefaultEnforcedV3Seed,
@@ -17,9 +21,14 @@ import {
 } from "./constants";
 import { buildUpdateRulesetOptions } from "./dnr-rulesets";
 import { isMainFrameTabNavigation } from "./navigation-guards";
+import { createPolicyLoadQueue } from "./policy-load-queue";
 import { isEnforcerSyncChange } from "./storage-sync";
 import { PowerAutomateUrlPolicy } from "./url-policy";
 
+/**
+ * Dedupes redundant `tabs.update` calls per tab. Not persisted: MV3 extension service workers can
+ * terminate when idle; after wake this map is empty so we may issue extra updates until it refills.
+ */
 const lastCanonicalKeyByTabId: Record<number, string> = Object.create(null);
 
 function clearTabCanonicalKey(tabId: number): void {
@@ -70,7 +79,16 @@ const POWER_AUTOMATE_URL_FILTERS: chrome.events.UrlFilter[] = [
 ];
 
 async function applyRulesetsForPreference(mode: EnforcementPreference): Promise<void> {
-  await chrome.declarativeNetRequest.updateEnabledRulesets(buildUpdateRulesetOptions(mode));
+  const options = buildUpdateRulesetOptions(mode);
+  try {
+    await chrome.declarativeNetRequest.updateEnabledRulesets(options);
+  } catch (error) {
+    console.error(
+      "[power-automate-editor-version-enforcer] declarativeNetRequest.updateEnabledRulesets failed",
+      { mode, options, error },
+    );
+    throw error;
+  }
 }
 
 async function reconcileFromStorage(): Promise<void> {
@@ -79,14 +97,18 @@ async function reconcileFromStorage(): Promise<void> {
     const preference = parseEnforcementPreference(result[STORAGE_KEY_ENFORCED_V3]);
     const surveyOn = parseV3SurveyEnabled(result[STORAGE_KEY_V3SURVEY_ENABLED]);
     PowerAutomateUrlPolicy.configure({ preference, v3surveyEnabled: surveyOn });
+    applyToolbarBadgeForEnforcement(preference);
     await applyRulesetsForPreference(preference);
   } catch (error) {
     console.error("[power-automate-editor-version-enforcer] reconcileFromStorage failed", error);
   }
 }
 
+const policyQueue = createPolicyLoadQueue(reconcileFromStorage);
+
 chrome.webNavigation.onCommitted.addListener(
-  (details) => {
+  async (details) => {
+    await policyQueue.awaitReconcileCaughtUp();
     if (!isMainFrameTabNavigation(details)) {
       return;
     }
@@ -96,7 +118,8 @@ chrome.webNavigation.onCommitted.addListener(
 );
 
 chrome.webNavigation.onHistoryStateUpdated.addListener(
-  (details) => {
+  async (details) => {
+    await policyQueue.awaitReconcileCaughtUp();
     if (!isMainFrameTabNavigation(details)) {
       return;
     }
@@ -113,28 +136,33 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (!isEnforcerSyncChange(areaName, changes as Record<string, unknown>)) {
     return;
   }
-  void reconcileFromStorage();
+  policyQueue.scheduleReconcile();
 });
 
 chrome.runtime.onInstalled.addListener((details) => {
-  void (async () => {
-    if (details.reason === "install") {
-      const existing = await chrome.storage.sync.get(SYNC_POLICY_KEYS);
-      const rawMode = existing[STORAGE_KEY_ENFORCED_V3];
-      const rawSurvey = existing[STORAGE_KEY_V3SURVEY_ENABLED];
-      const toSet: Record<string, string> = {};
-      if (needsDefaultEnforcedV3Seed(rawMode)) {
-        toSet[STORAGE_KEY_ENFORCED_V3] = DEFAULT_ENFORCED_V3;
+  policyQueue.chainAfterTail(async () => {
+    try {
+      if (details.reason === "install") {
+        const existing = await chrome.storage.sync.get(SYNC_POLICY_KEYS);
+        const rawMode = existing[STORAGE_KEY_ENFORCED_V3];
+        const rawSurvey = existing[STORAGE_KEY_V3SURVEY_ENABLED];
+        const toSet: Record<string, string> = {};
+        if (needsDefaultEnforcedV3Seed(rawMode)) {
+          toSet[STORAGE_KEY_ENFORCED_V3] = DEFAULT_ENFORCED_V3;
+        }
+        if (needsDefaultV3SurveyEnabledSeed(rawSurvey)) {
+          toSet[STORAGE_KEY_V3SURVEY_ENABLED] = "false";
+        }
+        if (Object.keys(toSet).length > 0) {
+          await chrome.storage.sync.set(toSet);
+        }
       }
-      if (needsDefaultV3SurveyEnabledSeed(rawSurvey)) {
-        toSet[STORAGE_KEY_V3SURVEY_ENABLED] = "false";
-      }
-      if (Object.keys(toSet).length > 0) {
-        await chrome.storage.sync.set(toSet);
-      }
+      await reconcileFromStorage();
+    } catch (error) {
+      console.error(
+        "[power-automate-editor-version-enforcer] onInstalled policy chain failed",
+        error,
+      );
     }
-    await reconcileFromStorage();
-  })();
+  });
 });
-
-void reconcileFromStorage();

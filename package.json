@@ -14,13 +14,14 @@
     "build": "npm run prebuild && npm run build:sw && npm run build:content && npm run build:popup",
     "watch": "vite build --config vite.popup.config.ts --watch",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify:naming": "node scripts/verify-project-naming.mjs",
-    "predeploy": "npm run verify:naming && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
+    "predeploy": "npm run verify:naming && npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -29,6 +30,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/coverage-v8": "^4.1.6",
     "autoprefixer": "^10.5.0",
     "esbuild": "^0.25.12",
     "eslint": "^9.39.4",

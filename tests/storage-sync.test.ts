@@ -52,4 +52,14 @@ describe("isEnforcerSyncChange", () => {
   it("is false when sync omits both keys", () => {
     expect(isEnforcerSyncChange("sync", { otherKey: {} })).toBe(false);
   });
+
+  it("is false for an empty sync change object", () => {
+    expect(isEnforcerSyncChange("sync", {})).toBe(false);
+  });
+
+  it("is true when a policy key is present on a null-prototype changes object", () => {
+    const changes = Object.create(null) as Record<string, unknown>;
+    changes[STORAGE_KEY_ENFORCED_V3] = { oldValue: "false", newValue: "true" };
+    expect(isEnforcerSyncChange("sync", changes)).toBe(true);
+  });
 });

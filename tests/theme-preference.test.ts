@@ -5,6 +5,7 @@ import {
   parseThemePreference,
   prefersDarkFromSystem,
   resolveIsDark,
+  type ThemePreference,
 } from "../src/popup/theme-preference";
 
 function stubWindowWithMatchMedia(matches: boolean) {
@@ -62,6 +63,10 @@ describe("resolveIsDark", () => {
   it("forces dark and light for explicit preferences", () => {
     expect(resolveIsDark("dark")).toBe(true);
     expect(resolveIsDark("light")).toBe(false);
+  });
+
+  it("treats any non-dark runtime string as light (legacy callers)", () => {
+    expect(resolveIsDark("system" as unknown as ThemePreference)).toBe(false);
   });
 });
 

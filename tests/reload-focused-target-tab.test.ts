@@ -93,4 +93,16 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
     await expect(reloadFocusedTargetTabIfApplicable("true")).resolves.toBe(false);
   });
+
+  it("rejects when tabs.query rejects (unexpected Chrome failure)", async () => {
+    const query = vi.fn().mockRejectedValue(new Error("query failed"));
+    const chromeMock = {
+      tabs: {
+        query,
+        reload: vi.fn(),
+      },
+    };
+    vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
+    await expect(reloadFocusedTargetTabIfApplicable("false")).rejects.toThrow("query failed");
+  });
 });
