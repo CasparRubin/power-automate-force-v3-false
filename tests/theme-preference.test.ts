@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyThemeClassToDocument,
-  DEFAULT_THEME_PREFERENCE,
+  defaultThemeFromSystem,
   parseThemePreference,
   prefersDarkFromSystem,
   resolveIsDark,
@@ -22,16 +22,40 @@ function stubWindowWithMatchMedia(matches: boolean) {
 }
 
 describe("parseThemePreference", () => {
-  it("accepts system, light, and dark", () => {
-    expect(parseThemePreference("system")).toBe("system");
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("passes through light and dark", () => {
     expect(parseThemePreference("light")).toBe("light");
     expect(parseThemePreference("dark")).toBe("dark");
   });
 
-  it("returns default for invalid values", () => {
-    expect(parseThemePreference(undefined)).toBe(DEFAULT_THEME_PREFERENCE);
-    expect(parseThemePreference("LIGHT")).toBe(DEFAULT_THEME_PREFERENCE);
-    expect(parseThemePreference(1)).toBe(DEFAULT_THEME_PREFERENCE);
+  it("maps system and invalid values via OS preference when dark", () => {
+    stubWindowWithMatchMedia(true);
+    expect(parseThemePreference("system")).toBe("dark");
+    expect(parseThemePreference(undefined)).toBe("dark");
+    expect(parseThemePreference("LIGHT")).toBe("dark");
+    expect(parseThemePreference(1)).toBe("dark");
+  });
+
+  it("maps system and invalid values via OS preference when light", () => {
+    stubWindowWithMatchMedia(false);
+    expect(parseThemePreference("system")).toBe("light");
+    expect(parseThemePreference(undefined)).toBe("light");
+  });
+});
+
+describe("defaultThemeFromSystem", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("follows prefers-color-scheme", () => {
+    stubWindowWithMatchMedia(true);
+    expect(defaultThemeFromSystem()).toBe("dark");
+    stubWindowWithMatchMedia(false);
+    expect(defaultThemeFromSystem()).toBe("light");
   });
 });
 
@@ -39,22 +63,6 @@ describe("resolveIsDark", () => {
   it("forces dark and light for explicit preferences", () => {
     expect(resolveIsDark("dark")).toBe(true);
     expect(resolveIsDark("light")).toBe(false);
-  });
-});
-
-describe("resolveIsDark with system preference", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("is true when prefers-color-scheme reports dark", () => {
-    stubWindowWithMatchMedia(true);
-    expect(resolveIsDark("system")).toBe(true);
-  });
-
-  it("is false when prefers-color-scheme reports light", () => {
-    stubWindowWithMatchMedia(false);
-    expect(resolveIsDark("system")).toBe(false);
   });
 });
 

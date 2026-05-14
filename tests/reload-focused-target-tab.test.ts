@@ -78,6 +78,15 @@ describe("reloadFocusedTargetTabIfApplicable", () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  it("reloads when active tab is a /runs/ target URL", async () => {
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const runUrl = "https://emea.powerautomate.com/environments/foo/runs/run-1?v3=false";
+    const chromeMock = chromeTabsStub([{ id: 9, url: runUrl }], reload);
+    vi.stubGlobal("chrome", chromeMock as unknown as typeof chrome);
+    await reloadFocusedTargetTabIfApplicable("false");
+    expect(reload).toHaveBeenCalledWith(9);
+  });
+
   it("resolves when reload rejects (e.g. tab closed)", async () => {
     const reload = vi.fn().mockRejectedValue(new Error("no tab"));
     const chromeMock = chromeTabsStub([{ id: 3, url: FLOW_TAB_URL }], reload);

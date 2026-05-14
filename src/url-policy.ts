@@ -4,20 +4,21 @@ import type { EnforcementPreference, EnforcedV3 } from "./constants";
  * Shared Power Automate URL policy for background and content scripts (and for `isTargetUrl` checks
  * in the popup reload helper). Call `PowerAutomateUrlPolicy.configure({ preference, v3surveyEnabled })`
  * before relying on canonicalization; the **service worker** and **content script** load preferences
- * from `chrome.storage.sync` and call `configure()`. The popup bundle does not configure policy state
- * (it only uses `isTargetUrl`, which does not depend on the stored preference).
+ * from `chrome.storage.sync` and call `configure()`. Declarative Net Request JSON only adjusts `v3`;
+ * **`v3survey`** is handled here and in the content bundle (**Hide:** `v3survey=false`, added if missing;
+ * **Show:** normalize existing `v3survey` keys to `true` only, never add when absent). The popup bundle
+ * does not configure policy state (it only uses `isTargetUrl`, which does not depend on the stored preference).
  */
 const HOST_PATTERNS = [/(^|\.)powerautomate\.com$/i, /^flow\.microsoft\.com$/i];
 const TARGET_PATH_SEGMENTS = ["/flows/", "/runs/"];
 const V3_PARAM_KEY = "v3";
 const V3_SURVEY_PARAM_KEY = "v3survey";
 const MISSING_VALUE = "__missing__";
-/** Canonical survey token when survey mode is off (survey query is ignored for dedupe). */
-const SURVEY_CANONICAL_IGNORED = "__survey_ignored__";
 
 let preference: EnforcementPreference = "false";
 let enforcedV3: EnforcedV3 = "false";
-let v3surveyEnabled = false;
+/** Sync `v3surveyEnabled`: `false` = hide survey (`v3survey=false`); `true` = show (normalize in-URL `v3survey` to `true` only, never add). */
+let v3surveyShowWhenPresent = false;
 
 function isSupportedHost(hostname: string): boolean {
   return HOST_PATTERNS.some((re) => re.test(hostname));
@@ -56,14 +57,30 @@ function allV3SurveyValuesTrue(values: string[]): boolean {
   return true;
 }
 
+function allV3SurveyValuesFalse(values: string[]): boolean {
+  for (let i = 0; i < values.length; i += 1) {
+    if (values[i] !== "false") {
+      return false;
+    }
+  }
+  return true;
+}
+
 function isCompliant(parsed: URL): boolean {
   const v3Values = getParamValues(parsed.searchParams, V3_PARAM_KEY);
   if (v3Values.length === 0 || !allMatchEnforced(v3Values)) {
     return false;
   }
-  if (v3surveyEnabled) {
-    const v3SurveyValues = getParamValues(parsed.searchParams, V3_SURVEY_PARAM_KEY);
-    if (v3SurveyValues.length === 0 || !allV3SurveyValuesTrue(v3SurveyValues)) {
+  const v3SurveyValues = getParamValues(parsed.searchParams, V3_SURVEY_PARAM_KEY);
+  if (v3surveyShowWhenPresent) {
+    if (v3SurveyValues.length === 0) {
+      return true;
+    }
+    if (!allV3SurveyValuesTrue(v3SurveyValues)) {
+      return false;
+    }
+  } else {
+    if (v3SurveyValues.length === 0 || !allV3SurveyValuesFalse(v3SurveyValues)) {
       return false;
     }
   }
@@ -97,6 +114,19 @@ function ensureV3SurveyTrue(searchParams: URLSearchParams): void {
   searchParams.set("v3survey", "true");
 }
 
+function ensureV3SurveyFalse(searchParams: URLSearchParams): void {
+  const keysToRemove: string[] = [];
+  searchParams.forEach((_value, key) => {
+    if (key.toLowerCase() === V3_SURVEY_PARAM_KEY) {
+      keysToRemove.push(key);
+    }
+  });
+  for (const k of keysToRemove) {
+    searchParams.delete(k);
+  }
+  searchParams.set("v3survey", "false");
+}
+
 function canonicalTokenForParam(searchParams: URLSearchParams, paramKey: string): string {
   const values = getParamValues(searchParams, paramKey);
   if (values.length === 0) {
@@ -106,14 +136,17 @@ function canonicalTokenForParam(searchParams: URLSearchParams, paramKey: string)
 }
 
 function canonicalTokenForV3Survey(searchParams: URLSearchParams): string {
-  if (!v3surveyEnabled) {
-    return SURVEY_CANONICAL_IGNORED;
-  }
   const values = getParamValues(searchParams, V3_SURVEY_PARAM_KEY);
+  if (v3surveyShowWhenPresent) {
+    if (values.length === 0) {
+      return MISSING_VALUE;
+    }
+    return allV3SurveyValuesTrue(values) ? "true" : "other";
+  }
   if (values.length === 0) {
     return MISSING_VALUE;
   }
-  return allV3SurveyValuesTrue(values) ? "true" : "other";
+  return allV3SurveyValuesFalse(values) ? "false" : "other";
 }
 
 export const PowerAutomateUrlPolicy = {
@@ -122,7 +155,7 @@ export const PowerAutomateUrlPolicy = {
     if (opts.preference === "true" || opts.preference === "false") {
       enforcedV3 = opts.preference;
     }
-    v3surveyEnabled = opts.v3surveyEnabled === true;
+    v3surveyShowWhenPresent = opts.v3surveyEnabled === true;
   },
 
   isEnforcementPaused(): boolean {
@@ -162,8 +195,12 @@ export const PowerAutomateUrlPolicy = {
   },
 
   /**
-   * Rewrites the URL to match the configured v3 / optional v3survey rules, or returns null if already compliant.
-   * When preference is `"off"`, always returns null (no rewrite).
+   * Rewrites the URL to match the configured `v3` and `v3survey` rules; returns null if already compliant.
+   * When preference is `"off"`, always returns null.
+   * When **Hide** (`configure` was called without `v3surveyEnabled: true`, matching sync `"false"`): sets
+   * `v3survey=false` (adds if missing).
+   * When **Show** (`v3surveyEnabled: true` from sync `"true"`): if any `v3survey` key is present, normalizes to a single
+   * `v3survey=true`; if absent, leaves the URL without `v3survey`.
    */
   canonicalizeToEnforced(urlValue: string): string | null {
     if (preference === "off") {
@@ -182,8 +219,13 @@ export const PowerAutomateUrlPolicy = {
       return null;
     }
     normalizeV3Param(parsed.searchParams);
-    if (v3surveyEnabled) {
-      ensureV3SurveyTrue(parsed.searchParams);
+    if (v3surveyShowWhenPresent) {
+      const surveyVals = getParamValues(parsed.searchParams, V3_SURVEY_PARAM_KEY);
+      if (surveyVals.length > 0) {
+        ensureV3SurveyTrue(parsed.searchParams);
+      }
+    } else {
+      ensureV3SurveyFalse(parsed.searchParams);
     }
     return parsed.toString();
   },

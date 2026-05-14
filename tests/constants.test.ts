@@ -23,6 +23,9 @@ type PublicManifest = {
   manifest_version?: number;
   permissions?: string[];
   host_permissions?: string[];
+  background?: { service_worker?: string; type?: string };
+  action?: { default_popup?: string; default_title?: string };
+  content_scripts?: Array<{ matches?: string[]; js?: string[]; run_at?: string }>;
   declarative_net_request?: {
     rule_resources?: Array<{ id: string; path: string; enabled?: boolean }>;
   };
@@ -84,18 +87,26 @@ describe("needsDefaultV3SurveyEnabledSeed", () => {
   it("is true for missing or invalid values", () => {
     expect(needsDefaultV3SurveyEnabledSeed(undefined)).toBe(true);
     expect(needsDefaultV3SurveyEnabledSeed(null)).toBe(true);
+    expect(needsDefaultV3SurveyEnabledSeed("")).toBe(true);
     expect(needsDefaultV3SurveyEnabledSeed("TRUE")).toBe(true);
+    expect(needsDefaultV3SurveyEnabledSeed(1)).toBe(true);
   });
 });
 
+/** Parsed from sync `v3surveyEnabled`: `true` = Show, `false` = Hide (default). */
 describe("parseV3SurveyEnabled", () => {
   it("is true only for strict string true", () => {
     expect(parseV3SurveyEnabled("true")).toBe(true);
   });
 
-  it("is false for any other input", () => {
+  it("is false for any other input (including wrong casing and non-strings)", () => {
     expect(parseV3SurveyEnabled("false")).toBe(false);
     expect(parseV3SurveyEnabled(undefined)).toBe(false);
+    expect(parseV3SurveyEnabled(null)).toBe(false);
+    expect(parseV3SurveyEnabled("")).toBe(false);
+    expect(parseV3SurveyEnabled("TRUE")).toBe(false);
+    expect(parseV3SurveyEnabled(1)).toBe(false);
+    expect(parseV3SurveyEnabled(true)).toBe(false);
   });
 });
 
@@ -158,5 +169,18 @@ describe("public/manifest.json (drift guard vs src/constants.ts)", () => {
   it("DNR rule JSON files exist next to manifest", () => {
     expect(existsSync(join(repoRoot, "public", "dnr-classic-editor.json"))).toBe(true);
     expect(existsSync(join(repoRoot, "public", "dnr-new-designer.json"))).toBe(true);
+  });
+
+  it("wires background, popup, and content script paths expected by the build", () => {
+    const manifest = readPublicManifest();
+    expect(manifest.background?.service_worker).toBe("background.js");
+    expect(manifest.background?.type).toBe("module");
+    expect(manifest.action?.default_popup).toBe("popup.html");
+    const cs = manifest.content_scripts?.[0];
+    expect(cs?.js).toEqual(["content.js"]);
+    expect(cs?.run_at).toBe("document_start");
+    expect(cs?.matches?.sort()).toEqual(
+      ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"].sort(),
+    );
   });
 });

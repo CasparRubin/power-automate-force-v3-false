@@ -1,7 +1,9 @@
 /**
  * Power Automate URL canonicalizer (content script).
- * When enforcement is active, normalizes flow/run URLs to the stored `v3` value. Optional `v3survey`
- * handling depends on storage: default leaves `v3survey` untouched; when enabled, forces `v3survey=true`.
+ * When enforcement is active (not `off`), applies the same policy as the service worker: normalizes
+ * flow/run URLs to the stored `v3` value. Survey handling follows sync `v3surveyEnabled` (**Hide:**
+ * default sync `"false"`, sets `v3survey=false` and adds it if missing; **Show:** sync `"true"`,
+ * normalizes existing `v3survey` keys to `true` only and does not add the param when absent).
  * When paused (`off`), canonicalization is a no-op and short-lived polling/observer are not started.
  * Assigns `globalThis.PowerAutomateUrlPolicy` for optional DevTools inspection (same implementation as
  * `./url-policy`; this bundle has its own module instance, configured from storage like the service worker).

@@ -19,9 +19,18 @@ describe("isEnforcerSyncChange", () => {
     ).toBe(true);
   });
 
-  it("is true when v3surveyEnabled changes alone", () => {
+  it("is true when v3surveyEnabled (Survey tab preference) changes alone", () => {
     expect(
       isEnforcerSyncChange("sync", {
+        [STORAGE_KEY_V3SURVEY_ENABLED]: { oldValue: "false", newValue: "true" },
+      }),
+    ).toBe(true);
+  });
+
+  it("is true when both policy keys appear in one sync change payload", () => {
+    expect(
+      isEnforcerSyncChange("sync", {
+        [STORAGE_KEY_ENFORCED_V3]: { oldValue: "false", newValue: "true" },
         [STORAGE_KEY_V3SURVEY_ENABLED]: { oldValue: "false", newValue: "true" },
       }),
     ).toBe(true);

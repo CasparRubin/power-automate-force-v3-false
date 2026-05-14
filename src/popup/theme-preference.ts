@@ -1,17 +1,26 @@
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "light" | "dark";
 
-export const DEFAULT_THEME_PREFERENCE: ThemePreference = "system";
+/**
+ * Resolves the initial theme from OS preference (first launch, missing storage, or legacy
+ * `"system"`). Popup UI only stores `"light"` | `"dark"` after that.
+ */
+export function defaultThemeFromSystem(): ThemePreference {
+  return prefersDarkFromSystem() ? "dark" : "light";
+}
 
 export function parseThemePreference(value: unknown): ThemePreference {
-  if (value === "light" || value === "dark" || value === "system") {
+  if (value === "light" || value === "dark") {
     return value;
   }
-  return DEFAULT_THEME_PREFERENCE;
+  if (value === "system") {
+    return defaultThemeFromSystem();
+  }
+  return defaultThemeFromSystem();
 }
 
 /**
  * Reads OS dark/light preference. If `matchMedia` is missing or throws, returns
- * `true` (dark) as a safe fallback when using system theme.
+ * `true` (dark) as a safe fallback when bootstrapping theme from the system.
  */
 export function prefersDarkFromSystem(): boolean {
   try {
@@ -25,13 +34,7 @@ export function prefersDarkFromSystem(): boolean {
 }
 
 export function resolveIsDark(preference: ThemePreference): boolean {
-  if (preference === "dark") {
-    return true;
-  }
-  if (preference === "light") {
-    return false;
-  }
-  return prefersDarkFromSystem();
+  return preference === "dark";
 }
 
 export function applyThemeClassToDocument(isDark: boolean): void {

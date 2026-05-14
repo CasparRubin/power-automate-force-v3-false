@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Power Automate: editor preference",
   "version": "2.1.0",
-  "description": "Classic or new designer for flow and run links. Optional survey flags. Pause without uninstalling.",
+  "description": "Classic or new designer for flow/run links (DNR sets v3 only). Survey: Hide (default, adds v3survey=false) or Show (normalize if present). Pause without uninstalling.",
   "homepage_url": "https://helvety.com",
   "permissions": ["declarativeNetRequest", "webNavigation", "storage"],
   "host_permissions": ["https://*.powerautomate.com/*", "https://flow.microsoft.com/*"],
@@ -12,7 +12,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Power Automate editor settings"
+    "default_title": "Power Automate: editor preference"
   },
   "declarative_net_request": {
     "rule_resources": [

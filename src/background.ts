@@ -1,3 +1,9 @@
+/**
+ * MV3 service worker: toggles DNR rulesets from sync `enforcedV3`, configures `PowerAutomateUrlPolicy`
+ * from `enforcedV3` + `v3surveyEnabled`, and rewrites main-frame flow/run URLs via `webNavigation` and
+ * `tabs.update` when enforcement is not paused. Static DNR JSON only adjusts `v3`; `v3survey` (**Hide**
+ * / **Show**) uses the same URL policy as the content script.
+ */
 import {
   DEFAULT_ENFORCED_V3,
   needsDefaultEnforcedV3Seed,

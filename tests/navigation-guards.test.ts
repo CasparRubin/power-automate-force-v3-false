@@ -10,6 +10,10 @@ describe("isMainFrameTabNavigation", () => {
     expect(isMainFrameTabNavigation({ frameId: 1, tabId: 42 })).toBe(false);
   });
 
+  it("rejects undefined frame id (not main frame)", () => {
+    expect(isMainFrameTabNavigation({ tabId: 42 })).toBe(false);
+  });
+
   it("rejects missing or non-numeric tab id", () => {
     expect(isMainFrameTabNavigation({ frameId: 0 })).toBe(false);
     expect(isMainFrameTabNavigation({ frameId: 0, tabId: undefined })).toBe(false);

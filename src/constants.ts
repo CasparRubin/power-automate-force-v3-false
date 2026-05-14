@@ -7,13 +7,17 @@ export type EnforcementPreference = EnforcedV3 | "off";
 /** Sync storage key; value is {@link EnforcementPreference} (`"true"` | `"false"` | `"off"`). */
 export const STORAGE_KEY_ENFORCED_V3 = "enforcedV3" as const;
 
-/** When `"true"`, target URLs get `v3survey=true` (added if missing). When `"false"` (default), `v3survey` is never added or rewritten. */
+/**
+ * Sync key for the popup Survey tab. When `"false"` (default, **Hide**), rewrites set
+ * `v3survey=false` (adds if missing). When `"true"` (**Show**), if any `v3survey` key is present on
+ * the URL it is normalized to `v3survey=true`; the extension does not add `v3survey` when absent.
+ */
 export const STORAGE_KEY_V3SURVEY_ENABLED = "v3surveyEnabled" as const;
 
 /** Keys loaded together by the service worker, content script, and popup. */
 export const SYNC_POLICY_KEYS = [STORAGE_KEY_ENFORCED_V3, STORAGE_KEY_V3SURVEY_ENABLED] as const;
 
-/** Local storage key for popup UI theme (`"system"` | `"light"` | `"dark"`). */
+/** Local storage key for popup UI theme (`"light"` | `"dark"`). */
 export const STORAGE_KEY_POPUP_THEME = "popupThemePreference" as const;
 
 export const DNR_RULESET_CLASSIC_EDITOR_ID = "dnr-classic-editor" as const;
@@ -42,12 +46,15 @@ export function needsDefaultEnforcedV3Seed(raw: unknown): boolean {
   return raw !== "true" && raw !== "false" && raw !== "off";
 }
 
-/** True when the stored `v3surveyEnabled` value is not the literal strings `"true"` or `"false"`. */
+/** True when install-time seeding should write `"false"` for Survey-tab Hide (`v3surveyEnabled`). */
 export function needsDefaultV3SurveyEnabledSeed(raw: unknown): boolean {
   return raw !== "true" && raw !== "false";
 }
 
-/** Whether to add and enforce `v3survey=true` on flow/run URLs. */
+/**
+ * `true` when sync stores `"true"` (Survey tab: **Show** — normalize in-URL `v3survey` to `true` only).
+ * `false` or missing means **Hide** (default): `v3survey=false` on rewrites.
+ */
 export function parseV3SurveyEnabled(value: unknown): boolean {
   return value === "true";
 }

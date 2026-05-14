@@ -4,7 +4,10 @@ import {
   type EnforcementPreference,
 } from "./constants";
 
-/** Options for `chrome.declarativeNetRequest.updateEnabledRulesets` (one ruleset on for `true`/`false`, both off for `"off"`). */
+/**
+ * Options for `chrome.declarativeNetRequest.updateEnabledRulesets`. Static rules only add/replace
+ * `v3` (see `public/dnr-*.json`); `v3survey` (**Hide** / **Show**) is not done in DNR.
+ */
 export function buildUpdateRulesetOptions(mode: EnforcementPreference): {
   enableRulesetIds: string[];
   disableRulesetIds: string[];

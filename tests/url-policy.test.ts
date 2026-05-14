@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { PowerAutomateUrlPolicy } from "../src/url-policy";
 
+/** Default `v3surveyEnabled: false` = hide survey (`v3survey=false` on rewrites). */
+
 beforeEach(() => {
   PowerAutomateUrlPolicy.configure({ preference: "false", v3surveyEnabled: false });
 });
 
-describe("PowerAutomateUrlPolicy (v3=false)", () => {
+describe("PowerAutomateUrlPolicy (v3=false, hide survey)", () => {
   it("is not paused when enforcing false", () => {
     expect(PowerAutomateUrlPolicy.isEnforcementPaused()).toBe(false);
   });
@@ -28,7 +30,7 @@ describe("PowerAutomateUrlPolicy (v3=false)", () => {
     expect(PowerAutomateUrlPolicy.isTargetUrl("not-a-url")).toBe(false);
   });
 
-  it("canonicalizes v3 to false when missing", () => {
+  it("canonicalizes v3 to false when missing and adds v3survey=false (hide)", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://emea.powerautomate.com/environments/foo/flows/bar/details?x=1",
     );
@@ -36,9 +38,10 @@ describe("PowerAutomateUrlPolicy (v3=false)", () => {
     const parsed = new URL(nextUrl!);
     expect(parsed.searchParams.get("x")).toBe("1");
     expect(parsed.searchParams.get("v3")).toBe("false");
+    expect(parsed.searchParams.get("v3survey")).toBe("false");
   });
 
-  it("normalizes mixed-case repeated v3 values", () => {
+  it("normalizes mixed-case repeated v3 values and sets v3survey=false", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://flow.microsoft.com/en-us/runs/id?V3=true&v3=TRUE&z=1",
     );
@@ -47,49 +50,47 @@ describe("PowerAutomateUrlPolicy (v3=false)", () => {
     expect(parsed.searchParams.get("V3")).toBe("false");
     expect(parsed.searchParams.get("v3")).toBe("false");
     expect(parsed.searchParams.get("z")).toBe("1");
+    expect(parsed.searchParams.get("v3survey")).toBe("false");
   });
 
-  it("does not rewrite v3survey when survey mode is off (default)", () => {
-    const withSurvey = PowerAutomateUrlPolicy.canonicalizeToEnforced(
-      "https://flow.microsoft.com/en-us/flows/id?v3=false&v3Survey=true",
+  it("hide mode rewrites v3survey=true to v3survey=false when fixing v3", () => {
+    const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
+      "https://flow.microsoft.com/en-us/flows/id?v3=true&v3Survey=true",
     );
-    expect(withSurvey).toBeNull();
-
-    const withoutSurvey = PowerAutomateUrlPolicy.canonicalizeToEnforced(
-      "https://flow.microsoft.com/en-us/flows/id?v3=true",
-    );
-    expect(withoutSurvey).toBeTruthy();
-    const parsedWithoutSurvey = new URL(withoutSurvey!);
-    expect(parsedWithoutSurvey.searchParams.has("v3survey")).toBe(false);
-    expect(parsedWithoutSurvey.searchParams.has("v3Survey")).toBe(false);
+    expect(nextUrl).toBeTruthy();
+    const parsed = new URL(nextUrl!);
+    expect(parsed.searchParams.get("v3")).toBe("false");
+    expect(parsed.searchParams.get("v3survey")).toBe("false");
   });
 
-  it("returns null when already compliant", () => {
+  it("returns null when already compliant (hide)", () => {
     expect(
       PowerAutomateUrlPolicy.canonicalizeToEnforced(
-        "https://emea.powerautomate.com/environments/foo/runs/bar?x=1&v3=false",
+        "https://emea.powerautomate.com/environments/foo/runs/bar?x=1&v3=false&v3survey=false",
       ),
     ).toBeNull();
   });
 
   it("uses canonical keys to dedupe encoding variants", () => {
     const keyWithPercent20 = PowerAutomateUrlPolicy.getCanonicalKey(
-      "https://emea.powerautomate.com/environments/default/flows/new?name=hello%20world&v3=false",
+      "https://emea.powerautomate.com/environments/default/flows/new?name=hello%20world&v3=false&v3survey=false",
     );
     const keyWithPlus = PowerAutomateUrlPolicy.getCanonicalKey(
-      "https://emea.powerautomate.com/environments/default/flows/new?name=hello+world&v3=false",
+      "https://emea.powerautomate.com/environments/default/flows/new?name=hello+world&v3=false&v3survey=false",
     );
     expect(keyWithPercent20).toBe(keyWithPlus);
   });
 
-  it("canonical key ignores v3survey differences when survey mode is off", () => {
+  it("canonical key distinguishes v3survey true vs false when hiding", () => {
     const a = PowerAutomateUrlPolicy.getCanonicalKey(
       "https://flow.microsoft.com/en-us/flows/id?v3=false&v3survey=false",
     );
     const b = PowerAutomateUrlPolicy.getCanonicalKey(
       "https://flow.microsoft.com/en-us/flows/id?v3=false&v3survey=true",
     );
-    expect(a).toBe(b);
+    expect(a).not.toBe(b);
+    expect(a).toContain("|v3survey=false");
+    expect(b).toContain("|v3survey=other");
   });
 });
 
@@ -111,12 +112,12 @@ describe("PowerAutomateUrlPolicy (paused)", () => {
   });
 });
 
-describe("PowerAutomateUrlPolicy (v3survey enabled, v3=false)", () => {
+describe("PowerAutomateUrlPolicy (show survey, enforced v3=false)", () => {
   beforeEach(() => {
     PowerAutomateUrlPolicy.configure({ preference: "false", v3surveyEnabled: true });
   });
 
-  it("getCanonicalKey distinguishes v3survey when survey mode is on", () => {
+  it("getCanonicalKey distinguishes v3survey when show mode and key present", () => {
     const compliant = PowerAutomateUrlPolicy.getCanonicalKey(
       "https://flow.microsoft.com/en-us/flows/id?v3=false&v3survey=true",
     );
@@ -128,17 +129,18 @@ describe("PowerAutomateUrlPolicy (v3survey enabled, v3=false)", () => {
     expect(nonCompliant).toContain("|v3survey=other");
   });
 
-  it("adds v3survey=true when missing", () => {
+  it("does not add v3survey=true when key is absent (show)", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://emea.powerautomate.com/environments/foo/flows/bar/details?x=1&v3=false",
     );
-    expect(nextUrl).toBeTruthy();
-    const parsed = new URL(nextUrl!);
-    expect(parsed.searchParams.get("v3")).toBe("false");
-    expect(parsed.searchParams.get("v3survey")).toBe("true");
+    expect(nextUrl).toBeNull();
+    const parsed = new URL(
+      "https://emea.powerautomate.com/environments/foo/flows/bar/details?x=1&v3=false",
+    );
+    expect(parsed.searchParams.has("v3survey")).toBe(false);
   });
 
-  it("coerces existing v3survey values to true", () => {
+  it("coerces existing v3survey values to true when key present (show)", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://flow.microsoft.com/en-us/flows/id?v3=false&v3Survey=false",
     );
@@ -147,9 +149,33 @@ describe("PowerAutomateUrlPolicy (v3survey enabled, v3=false)", () => {
     expect(parsed.searchParams.get("v3")).toBe("false");
     expect(parsed.searchParams.get("v3survey")).toBe("true");
   });
+
+  it("fixes wrong v3 without adding v3survey when survey key was absent (show)", () => {
+    const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
+      "https://flow.microsoft.com/en-us/flows/id?v3=true&x=1",
+    );
+    expect(nextUrl).toBeTruthy();
+    const parsed = new URL(nextUrl!);
+    expect(parsed.searchParams.get("v3")).toBe("false");
+    expect(parsed.searchParams.get("x")).toBe("1");
+    expect(parsed.searchParams.has("v3survey")).toBe(false);
+  });
+
+  it("collapses duplicate v3survey keys to a single v3survey=true (show)", () => {
+    const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
+      "https://flow.microsoft.com/en-us/flows/id?v3=false&v3survey=false&v3Survey=true",
+    );
+    expect(nextUrl).toBeTruthy();
+    const parsed = new URL(nextUrl!);
+    expect(parsed.searchParams.get("v3")).toBe("false");
+    expect(parsed.searchParams.get("v3survey")).toBe("true");
+    expect(
+      [...parsed.searchParams.keys()].filter((k) => k.toLowerCase() === "v3survey"),
+    ).toHaveLength(1);
+  });
 });
 
-describe("PowerAutomateUrlPolicy (v3=true)", () => {
+describe("PowerAutomateUrlPolicy (v3=true, hide survey)", () => {
   beforeEach(() => {
     PowerAutomateUrlPolicy.configure({ preference: "true", v3surveyEnabled: false });
   });
@@ -158,7 +184,7 @@ describe("PowerAutomateUrlPolicy (v3=true)", () => {
     expect(PowerAutomateUrlPolicy.isEnforcementPaused()).toBe(false);
   });
 
-  it("canonicalizes v3 to true when missing", () => {
+  it("canonicalizes v3 to true when missing and adds v3survey=false", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://emea.powerautomate.com/environments/foo/flows/bar/details?x=1",
     );
@@ -166,49 +192,60 @@ describe("PowerAutomateUrlPolicy (v3=true)", () => {
     const parsed = new URL(nextUrl!);
     expect(parsed.searchParams.get("v3")).toBe("true");
     expect(parsed.searchParams.get("x")).toBe("1");
+    expect(parsed.searchParams.get("v3survey")).toBe("false");
   });
 
-  it("rewrites v3=false to v3=true", () => {
+  it("rewrites v3=false to v3=true and sets v3survey=false", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://flow.microsoft.com/en-us/flows/id?v3=false",
     );
     expect(nextUrl).toBeTruthy();
     const parsed = new URL(nextUrl!);
     expect(parsed.searchParams.get("v3")).toBe("true");
+    expect(parsed.searchParams.get("v3survey")).toBe("false");
   });
 
-  it("does not rewrite mismatched v3survey when survey mode is off", () => {
+  it("returns null when v3 and hide survey already match", () => {
     expect(
       PowerAutomateUrlPolicy.canonicalizeToEnforced(
-        "https://flow.microsoft.com/en-us/flows/id?v3=true&v3Survey=false",
-      ),
-    ).toBeNull();
-  });
-
-  it("returns null when already compliant for true mode", () => {
-    expect(
-      PowerAutomateUrlPolicy.canonicalizeToEnforced(
-        "https://flow.microsoft.com/en-us/flows/id?v3=true&v3survey=true",
+        "https://flow.microsoft.com/en-us/flows/id?v3=true&v3survey=false",
       ),
     ).toBeNull();
   });
 });
 
-describe("PowerAutomateUrlPolicy (v3survey enabled, v3=true)", () => {
+describe("PowerAutomateUrlPolicy (show survey, enforced v3=true)", () => {
   beforeEach(() => {
     PowerAutomateUrlPolicy.configure({ preference: "true", v3surveyEnabled: true });
   });
 
-  it("adds v3survey=true when v3 is already true", () => {
+  it("does not add v3survey when absent even if v3 is correct (show)", () => {
     const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://flow.microsoft.com/en-us/flows/id?v3=true",
+    );
+    expect(nextUrl).toBeNull();
+  });
+
+  it("normalizes v3survey to true when present (show)", () => {
+    const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
+      "https://flow.microsoft.com/en-us/flows/id?v3=true&v3survey=false",
     );
     expect(nextUrl).toBeTruthy();
     expect(new URL(nextUrl!).searchParams.get("v3survey")).toBe("true");
   });
+
+  it("fixes wrong v3 without adding v3survey when survey key was absent (show)", () => {
+    const nextUrl = PowerAutomateUrlPolicy.canonicalizeToEnforced(
+      "https://flow.microsoft.com/en-us/flows/id?v3=false",
+    );
+    expect(nextUrl).toBeTruthy();
+    const parsed = new URL(nextUrl!);
+    expect(parsed.searchParams.get("v3")).toBe("true");
+    expect(parsed.searchParams.has("v3survey")).toBe(false);
+  });
 });
 
-describe("PowerAutomateUrlPolicy edges (v3=false)", () => {
+describe("PowerAutomateUrlPolicy edges (v3=false, hide survey)", () => {
   beforeEach(() => {
     PowerAutomateUrlPolicy.configure({ preference: "false", v3surveyEnabled: false });
   });
@@ -226,9 +263,10 @@ describe("PowerAutomateUrlPolicy edges (v3=false)", () => {
     expect(next).toBeTruthy();
     expect(next!.endsWith("#leftNavPane")).toBe(true);
     expect(new URL(next!).searchParams.get("v3")).toBe("false");
+    expect(new URL(next!).searchParams.get("v3survey")).toBe("false");
   });
 
-  it("rewrites only v3 when survey mode is off, leaving v3survey keys unchanged", () => {
+  it("hide mode collapses duplicate v3survey keys to a single v3survey=false", () => {
     const next = PowerAutomateUrlPolicy.canonicalizeToEnforced(
       "https://flow.microsoft.com/en-us/flows/x?v3=true&v3survey=false&v3Survey=true",
     );
@@ -236,6 +274,5 @@ describe("PowerAutomateUrlPolicy edges (v3=false)", () => {
     const parsed = new URL(next!);
     expect(parsed.searchParams.get("v3")).toBe("false");
     expect(parsed.searchParams.get("v3survey")).toBe("false");
-    expect(parsed.searchParams.get("v3Survey")).toBe("true");
   });
 });
