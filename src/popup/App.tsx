@@ -457,9 +457,10 @@ export default function App() {
                 <CardHeader className="flex flex-col gap-1 p-3 pb-2">
                   <CardTitle className="text-sm">{EXTENSION_DISPLAY_NAME}</CardTitle>
                   <CardDescription className="text-xs leading-relaxed">
-                    Keeps Microsoft Power Automate flow and run links opening in the editor you
-                    choose (classic or new designer), or lets you pause rewrites while the extension
-                    stays installed.
+                    Aligns Microsoft Power Automate flow and run URLs with the classic or new
+                    designer, optional <span className="font-medium text-foreground">v3survey</span>{" "}
+                    Hide/Show from the Survey tab, and pause (no rewrites while the extension stays
+                    installed).
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 p-3 pt-0 text-xs leading-relaxed text-muted-foreground">
